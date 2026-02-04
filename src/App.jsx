@@ -17,6 +17,9 @@ import {
     RoutesAndStops,
     SongsUpload,
     PaymentConfig,
+    Devotees,
+    Volunteers,
+    Notifications,
     SideCards
 } from './components';
 
@@ -67,18 +70,10 @@ function App() {
         console.log("Draft data:", formData);
     };
 
-    return (
-        <div className="app-container">
-            <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-            <main className="main-content">
-                <PageHeader
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    onDiscard={handleDiscard}
-                    onSaveDraft={handleSaveDraft}
-                />
-
-                {activeTab === 'Dashboard' ? (
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'Dashboard':
+                return (
                     <>
                         <ProgressSteps currentStep={currentStep} setStep={setCurrentStep} />
                         <div className={`content-grid ${currentStep !== 1 ? 'full-width' : ''}`}>
@@ -126,13 +121,39 @@ function App() {
                             )}
                         </div>
                     </>
-                ) : (
+                );
+            case 'Devotees':
+                return <Devotees />;
+            case 'Volunteers':
+                return <Volunteers />;
+            case 'Notifications':
+                return <Notifications />;
+            case 'Medias':
+                return <SongsUpload />;
+            case 'Payments':
+                return <PaymentConfig />;
+            default:
+                return (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '60vh', gap: '1rem' }}>
                         <LayoutDashboard size={64} style={{ color: '#e5e7eb' }} />
                         <h2 style={{ color: '#1f2937' }}>{activeTab} Management</h2>
                         <p style={{ color: '#6b7280' }}>This section is currently under development.</p>
                     </div>
-                )}
+                );
+        }
+    };
+
+    return (
+        <div className="app-container">
+            <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+            <main className="main-content">
+                <PageHeader
+                    activeTab={activeTab}
+                    setActiveTab={setActiveTab}
+                    onDiscard={handleDiscard}
+                    onSaveDraft={handleSaveDraft}
+                />
+                {renderContent()}
             </main>
         </div>
     );

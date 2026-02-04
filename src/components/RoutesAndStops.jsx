@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     Check,
     MapPin,
@@ -23,12 +23,28 @@ export function RoutesAndStops() {
     const [startCoords, setStartCoords] = useState({ lat: 9.9195, lng: 78.1193 });
     const [destCoords, setDestCoords] = useState({ lat: 9.8329, lng: 78.0841 });
 
-    const stops = [
-        { id: 1, name: "McDonald's", type: "Annathanam", icon: <Check size={18} />, color: "#22c55e", coords: [9.9252, 78.1198] },
-        { id: 2, name: "Bird's Fort Trail Park", type: "Resting Place/Park", icon: <Check size={18} />, color: "#f97316", coords: [9.9152, 78.1298] },
-    ];
+    const [stops, setStops] = useState([
+        { id: 1, name: "McDonald's", type: "Annathanam", icon: <Check size={18} />, color: "#22c55e", coords: { lat: 9.9252, lng: 78.1198 } },
+        { id: 2, name: "Bird's Fort Trail Park", type: "Resting Place/Park", icon: <Check size={18} />, color: "#f97316", coords: { lat: 9.9152, lng: 78.1298 } },
+    ]);
 
-    const updateMap = () => {
+    const [mapLoaded, setMapLoaded] = useState(false);
+    const [mapError, setMapError] = useState(null);
+
+    // Reverse Geocoding Helper
+    const reverseGeocode = useCallback((pos, type) => {
+        const google = window.google;
+        if (!google) return;
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ location: pos }, (results, status) => {
+            if (status === "OK" && results[0]) {
+                if (type === 'start') setStartAddr(results[0].formatted_address);
+                else if (type === 'dest') setDestAddr(results[0].formatted_address);
+            }
+        });
+    }, []);
+
+    const updateMap = useCallback(() => {
         const google = window.google;
         if (!google || !mapInstanceRef.current) return;
 
@@ -36,33 +52,47 @@ export function RoutesAndStops() {
         markersRef.current.forEach(m => m.setMap(null));
         markersRef.current = [];
 
-        const addMarker = (pos, color, title) => {
+        const addMarker = (pos, color, title, type, draggable = false) => {
             const marker = new google.maps.Marker({
                 position: pos,
                 map: mapInstanceRef.current,
                 title: title,
+                draggable: draggable,
                 icon: {
                     path: google.maps.SymbolPath.CIRCLE,
                     fillColor: color,
                     fillOpacity: 1,
                     strokeWeight: 2,
                     strokeColor: "#FFFFFF",
-                    scale: 8
+                    scale: 10
                 }
             });
+
+            if (draggable) {
+                marker.addListener('dragend', () => {
+                    const newPos = {
+                        lat: marker.getPosition().lat(),
+                        lng: marker.getPosition().lng()
+                    };
+                    if (type === 'start') setStartCoords(newPos);
+                    else if (type === 'dest') setDestCoords(newPos);
+                    reverseGeocode(newPos, type);
+                });
+            }
+
             markersRef.current.push(marker);
         };
 
-        addMarker(startCoords, "#f59e0b", "Start Point");
-        addMarker(destCoords, "#3b82f6", "Destination Point");
-        stops.forEach(s => addMarker({ lat: s.coords[0], lng: s.coords[1] }, s.color, s.name));
+        addMarker(startCoords, "#f59e0b", "Start Point", 'start', true);
+        addMarker(destCoords, "#3b82f6", "Destination Point", 'dest', true);
+        stops.forEach(s => addMarker(s.coords, s.color, s.name, 'stop'));
 
         // Update Polyline
         if (polylineRef.current) polylineRef.current.setMap(null);
 
         const pathPoints = [
             startCoords,
-            ...stops.map(s => ({ lat: s.coords[0], lng: s.coords[1] })),
+            ...stops.map(s => s.coords),
             destCoords
         ];
 
@@ -71,20 +101,15 @@ export function RoutesAndStops() {
             geodesic: true,
             strokeColor: "#f59e0b",
             strokeOpacity: 0.8,
-            strokeWeight: 4,
-            icons: [{
-                icon: { path: "M 0,-1 0,1", strokeOpacity: 1, scale: 4 },
-                offset: "0",
-                repeat: "20px"
-            }]
+            strokeWeight: 4
         });
         polylineRef.current.setMap(mapInstanceRef.current);
 
-        // Adjust bounds
+        // Adjust bounds to fit all markers
         const bounds = new google.maps.LatLngBounds();
         pathPoints.forEach(p => bounds.extend(p));
-        mapInstanceRef.current.fitBounds(bounds);
-    };
+        mapInstanceRef.current.fitBounds(bounds, { padding: 50 });
+    }, [startCoords, destCoords, stops, reverseGeocode]);
 
     const handleManualGeocode = (isStart) => {
         const google = window.google;
@@ -107,66 +132,62 @@ export function RoutesAndStops() {
                     setDestAddr(results[0].formatted_address);
                     setDestCoords(pos);
                 }
-
-                // Immediately pan to the new location to give feedback
-                if (mapInstanceRef.current) {
-                    mapInstanceRef.current.panTo(pos);
-                    mapInstanceRef.current.setZoom(14);
-                }
-            } else {
-                console.error("Geocode failed: " + status);
+                mapInstanceRef.current?.panTo(pos);
             }
         });
     };
 
     useEffect(() => {
-        if (!mapContainerRef.current) return;
+        const checkGoogle = () => {
+            if (window.google && window.google.maps) {
+                setMapLoaded(true);
+            } else if (!window.google) {
+                setTimeout(checkGoogle, 500);
+            }
+        };
+        checkGoogle();
+    }, []);
+
+    useEffect(() => {
+        if (!mapLoaded || !mapContainerRef.current) return;
         const google = window.google;
-        if (!google || !google.maps) return;
 
-        if (!mapInstanceRef.current) {
-            mapInstanceRef.current = new google.maps.Map(mapContainerRef.current, {
-                center: startCoords,
-                zoom: 13,
-                disableDefaultUI: true,
-                zoomControl: false,
-                styles: [{ featureType: "all", elementType: "geometry", stylers: [{ color: "#f5f5f5" }] }]
-            });
-
-            // Set up Autocomplete for Start
-            if (startInputRef.current) {
-                const startAutocomp = new google.maps.places.Autocomplete(startInputRef.current);
-                startAutocomp.addListener("place_changed", () => {
-                    const place = startAutocomp.getPlace();
-                    if (place.geometry && place.geometry.location) {
-                        const pos = {
-                            lat: place.geometry.location.lat(),
-                            lng: place.geometry.location.lng()
-                        };
-                        setStartAddr(place.formatted_address || "");
-                        setStartCoords(pos);
-                    }
+        try {
+            if (!mapInstanceRef.current) {
+                mapInstanceRef.current = new google.maps.Map(mapContainerRef.current, {
+                    center: startCoords,
+                    zoom: 13,
+                    disableDefaultUI: true,
+                    zoomControl: false,
+                    styles: [{ featureType: "all", elementType: "geometry", stylers: [{ color: "#f5f5f5" }] }]
                 });
-            }
 
-            // Set up Autocomplete for Destination
-            if (destInputRef.current) {
-                const destAutocomp = new google.maps.places.Autocomplete(destInputRef.current);
-                destAutocomp.addListener("place_changed", () => {
-                    const place = destAutocomp.getPlace();
-                    if (place.geometry && place.geometry.location) {
-                        const pos = {
-                            lat: place.geometry.location.lat(),
-                            lng: place.geometry.location.lng()
-                        };
-                        setDestAddr(place.formatted_address || "");
-                        setDestCoords(pos);
-                    }
-                });
+                // Autocomplete setup
+                const setupAutocomplete = (inputRef, setter, coordSetter, type) => {
+                    if (!inputRef.current) return;
+                    const autocomp = new google.maps.places.Autocomplete(inputRef.current);
+                    autocomp.addListener("place_changed", () => {
+                        const place = autocomp.getPlace();
+                        if (place.geometry?.location) {
+                            const pos = {
+                                lat: place.geometry.location.lat(),
+                                lng: place.geometry.location.lng()
+                            };
+                            setter(place.formatted_address || "");
+                            coordSetter(pos);
+                        }
+                    });
+                };
+
+                setupAutocomplete(startInputRef, setStartAddr, setStartCoords, 'start');
+                setupAutocomplete(destInputRef, setDestAddr, setDestCoords, 'dest');
             }
+            updateMap();
+        } catch (err) {
+            console.error("Map initialization failed:", err);
+            setMapError(err.message);
         }
-        updateMap();
-    }, [startCoords, destCoords]);
+    }, [mapLoaded, updateMap]);
 
     return (
         <div className="route-container">
@@ -178,29 +199,13 @@ export function RoutesAndStops() {
                             ref={startInputRef}
                             className="input"
                             style={{ paddingLeft: '1rem', paddingRight: '2.5rem' }}
-                            placeholder="Type to search start location..."
+                            placeholder="Type start location..."
                             value={startAddr}
                             onChange={(e) => setStartAddr(e.target.value)}
                             onBlur={() => handleManualGeocode(true)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    handleManualGeocode(true);
-                                    e.target.blur();
-                                }
-                            }}
+                            onKeyDown={(e) => e.key === 'Enter' && handleManualGeocode(true)}
                         />
-                        <Locate
-                            size={18}
-                            style={{
-                                left: 'auto',
-                                right: '1rem',
-                                color: '#f59e0b',
-                                cursor: 'pointer',
-                                zIndex: 10,
-                                pointerEvents: 'auto'
-                            }}
-                            onClick={() => handleManualGeocode(true)}
-                        />
+                        <Locate size={18} style={{ left: 'auto', right: '1rem', color: '#f59e0b', cursor: 'pointer' }} onClick={() => handleManualGeocode(true)} />
                     </div>
 
                     <label className="section-label">Destination</label>
@@ -209,35 +214,19 @@ export function RoutesAndStops() {
                             ref={destInputRef}
                             className="input"
                             style={{ paddingLeft: '1rem', paddingRight: '2.5rem' }}
-                            placeholder="Type to search destination..."
+                            placeholder="Type destination..."
                             value={destAddr}
                             onChange={(e) => setDestAddr(e.target.value)}
                             onBlur={() => handleManualGeocode(false)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    handleManualGeocode(false);
-                                    e.target.blur();
-                                }
-                            }}
+                            onKeyDown={(e) => e.key === 'Enter' && handleManualGeocode(false)}
                         />
-                        <Locate
-                            size={18}
-                            style={{
-                                left: 'auto',
-                                right: '1rem',
-                                color: '#f59e0b',
-                                cursor: 'pointer',
-                                zIndex: 10,
-                                pointerEvents: 'auto'
-                            }}
-                            onClick={() => handleManualGeocode(false)}
-                        />
+                        <Locate size={18} style={{ left: 'auto', right: '1rem', color: '#f59e0b', cursor: 'pointer' }} onClick={() => handleManualGeocode(false)} />
                     </div>
 
                     <div style={{ height: '1px', background: '#f3f4f6', margin: '1.5rem 0' }}></div>
 
                     <label className="section-label">
-                        <MapPin size={16} /> Manage Stops
+                        <MapPin size={16} /> Manage Stops ({stops.length})
                     </label>
 
                     {stops.map(stop => (
@@ -249,7 +238,7 @@ export function RoutesAndStops() {
                                 <span className="stop-name">{stop.name}</span>
                                 <span className="stop-type">{stop.type}</span>
                             </div>
-                            <button className="delete-btn">
+                            <button className="delete-btn" onClick={() => setStops(prev => prev.filter(s => s.id !== stop.id))}>
                                 <Trash2 size={16} />
                             </button>
                         </div>
@@ -264,15 +253,6 @@ export function RoutesAndStops() {
                                 <Locate size={18} style={{ left: 'auto', right: '1rem', color: '#f59e0b' }} />
                             </div>
                         </div>
-                        <div className="form-group">
-                            <label className="label" style={{ fontSize: '0.75rem' }}>Category</label>
-                            <div style={{ position: 'relative' }}>
-                                <select className="input" style={{ background: 'white', appearance: 'none' }}>
-                                    <option>Select category</option>
-                                </select>
-                                <ChevronLeft size={18} style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%) rotate(-90deg)', color: '#9ca3af', pointerEvents: 'none' }} />
-                            </div>
-                        </div>
                         <button className="btn btn-outline" style={{ width: '100%', background: '#fff7ed', border: '1px solid #ffedd5', color: '#f59e0b', fontSize: '0.85rem' }}>
                             + Confirm Stop
                         </button>
@@ -283,30 +263,24 @@ export function RoutesAndStops() {
             <div className="map-view">
                 <div className="map-overlay-msg">
                     <div style={{ width: '10px', height: '10px', background: '#f59e0b', borderRadius: '50%' }}></div>
-                    Click map to pin a new stop or drag existing markers
+                    Drag markers or search to update the route
                 </div>
 
                 <div
                     ref={mapContainerRef}
-                    style={{ width: '100%', height: '100%', background: '#f0f2f5', zIndex: 1 }}
-                />
+                    style={{ width: '100%', height: '100%', background: '#f0f2f5', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                    {!mapLoaded && !mapError && <div style={{ color: '#6b7280' }}>Loading Google Maps...</div>}
+                    {mapError && <div style={{ color: '#ef4444', textAlign: 'center', padding: '1rem' }}>Map Load Error: {mapError}</div>}
+                </div>
 
                 <div className="map-controls">
-                    <button className="map-btn" onClick={() => {
-                        const currentZoom = mapInstanceRef.current?.getZoom();
-                        if (currentZoom !== undefined) mapInstanceRef.current.setZoom(currentZoom + 1);
-                    }}><ZoomIn size={20} /></button>
-                    <button className="map-btn" onClick={() => {
-                        const currentZoom = mapInstanceRef.current?.getZoom();
-                        if (currentZoom !== undefined) mapInstanceRef.current.setZoom(currentZoom - 1);
-                    }}><ZoomOut size={20} /></button>
+                    <button className="map-btn" onClick={() => mapInstanceRef.current?.setZoom(mapInstanceRef.current.getZoom() + 1)}><ZoomIn size={20} /></button>
+                    <button className="map-btn" onClick={() => mapInstanceRef.current?.setZoom(mapInstanceRef.current.getZoom() - 1)}><ZoomOut size={20} /></button>
                     <button className="map-btn" style={{ marginTop: '0.5rem' }} onClick={() => {
                         if (navigator.geolocation) {
                             navigator.geolocation.getCurrentPosition((position) => {
-                                const pos = {
-                                    lat: position.coords.latitude,
-                                    lng: position.coords.longitude,
-                                };
+                                const pos = { lat: position.coords.latitude, lng: position.coords.longitude };
                                 mapInstanceRef.current.setCenter(pos);
                             });
                         }
