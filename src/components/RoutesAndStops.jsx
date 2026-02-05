@@ -7,7 +7,14 @@ import {
     ChevronLeft,
     ZoomIn,
     ZoomOut,
-    Navigation
+    Navigation,
+    Navigation2,
+    Plus,
+    MoreVertical,
+    Layers,
+    Coffee,
+    Hotel,
+    Stethoscope
 } from 'lucide-react';
 
 export function RoutesAndStops() {
@@ -24,126 +31,62 @@ export function RoutesAndStops() {
     const [destCoords, setDestCoords] = useState({ lat: 9.8329, lng: 78.0841 });
 
     const [stops, setStops] = useState([
-        { id: 1, name: "McDonald's", type: "Annathanam", icon: <Check size={18} />, color: "#22c55e", coords: { lat: 9.9252, lng: 78.1198 } },
-        { id: 2, name: "Bird's Fort Trail Park", type: "Resting Place/Park", icon: <Check size={18} />, color: "#f97316", coords: { lat: 9.9152, lng: 78.1298 } },
+        { id: 1, name: "Annapoorna Hall", type: "Annathanam", icon: <Coffee size={18} />, color: "#f59e0b", coords: { lat: 9.9252, lng: 78.1198 } },
+        { id: 2, name: "Pilgrims Rest Stop", type: "Resting Area", icon: <Hotel size={18} />, color: "#3b82f6", coords: { lat: 9.9152, lng: 78.1298 } },
+        { id: 3, name: "Medical Camp #1", type: "First Aid", icon: <Stethoscope size={18} />, color: "#ef4444", coords: { lat: 9.8852, lng: 78.1098 } },
     ]);
 
     const [mapLoaded, setMapLoaded] = useState(false);
     const [mapError, setMapError] = useState(null);
 
-    // Reverse Geocoding Helper
-    const reverseGeocode = useCallback((pos, type) => {
-        const google = window.google;
-        if (!google) return;
-        const geocoder = new google.maps.Geocoder();
-        geocoder.geocode({ location: pos }, (results, status) => {
-            if (status === "OK" && results[0]) {
-                if (type === 'start') setStartAddr(results[0].formatted_address);
-                else if (type === 'dest') setDestAddr(results[0].formatted_address);
-            }
-        });
-    }, []);
-
     const updateMap = useCallback(() => {
         const google = window.google;
         if (!google || !mapInstanceRef.current) return;
 
-        // Clear existing markers
         markersRef.current.forEach(m => m.setMap(null));
         markersRef.current = [];
 
-        const addMarker = (pos, color, title, type, draggable = false) => {
+        const addMarker = (pos, color, title, type) => {
             const marker = new google.maps.Marker({
                 position: pos,
                 map: mapInstanceRef.current,
                 title: title,
-                draggable: draggable,
                 icon: {
                     path: google.maps.SymbolPath.CIRCLE,
                     fillColor: color,
                     fillOpacity: 1,
                     strokeWeight: 2,
                     strokeColor: "#FFFFFF",
-                    scale: 10
+                    scale: 8
                 }
             });
-
-            if (draggable) {
-                marker.addListener('dragend', () => {
-                    const newPos = {
-                        lat: marker.getPosition().lat(),
-                        lng: marker.getPosition().lng()
-                    };
-                    if (type === 'start') setStartCoords(newPos);
-                    else if (type === 'dest') setDestCoords(newPos);
-                    reverseGeocode(newPos, type);
-                });
-            }
-
             markersRef.current.push(marker);
         };
 
-        addMarker(startCoords, "#f59e0b", "Start Point", 'start', true);
-        addMarker(destCoords, "#3b82f6", "Destination Point", 'dest', true);
-        stops.forEach(s => addMarker(s.coords, s.color, s.name, 'stop'));
+        addMarker(startCoords, "#10b981", "Start");
+        addMarker(destCoords, "#1e293b", "End");
+        stops.forEach(s => addMarker(s.coords, s.color, s.name));
 
-        // Update Polyline
         if (polylineRef.current) polylineRef.current.setMap(null);
-
-        const pathPoints = [
-            startCoords,
-            ...stops.map(s => s.coords),
-            destCoords
-        ];
-
+        const pathPoints = [startCoords, ...stops.map(s => s.coords), destCoords];
         polylineRef.current = new google.maps.Polyline({
             path: pathPoints,
             geodesic: true,
-            strokeColor: "#f59e0b",
+            strokeColor: "#f97316",
             strokeOpacity: 0.8,
             strokeWeight: 4
         });
         polylineRef.current.setMap(mapInstanceRef.current);
 
-        // Adjust bounds to fit all markers
         const bounds = new google.maps.LatLngBounds();
         pathPoints.forEach(p => bounds.extend(p));
         mapInstanceRef.current.fitBounds(bounds, { padding: 50 });
-    }, [startCoords, destCoords, stops, reverseGeocode]);
-
-    const handleManualGeocode = (isStart) => {
-        const google = window.google;
-        if (!google) return;
-
-        const address = isStart ? startAddr : destAddr;
-        if (!address || address.length < 3) return;
-
-        const geocoder = new google.maps.Geocoder();
-        geocoder.geocode({ address }, (results, status) => {
-            if (status === "OK" && results[0]) {
-                const pos = {
-                    lat: results[0].geometry.location.lat(),
-                    lng: results[0].geometry.location.lng()
-                };
-                if (isStart) {
-                    setStartAddr(results[0].formatted_address);
-                    setStartCoords(pos);
-                } else {
-                    setDestAddr(results[0].formatted_address);
-                    setDestCoords(pos);
-                }
-                mapInstanceRef.current?.panTo(pos);
-            }
-        });
-    };
+    }, [startCoords, destCoords, stops]);
 
     useEffect(() => {
         const checkGoogle = () => {
-            if (window.google && window.google.maps) {
-                setMapLoaded(true);
-            } else if (!window.google) {
-                setTimeout(checkGoogle, 500);
-            }
+            if (window.google && window.google.maps) setMapLoaded(true);
+            else setTimeout(checkGoogle, 500);
         };
         checkGoogle();
     }, []);
@@ -151,142 +94,144 @@ export function RoutesAndStops() {
     useEffect(() => {
         if (!mapLoaded || !mapContainerRef.current) return;
         const google = window.google;
-
-        try {
-            if (!mapInstanceRef.current) {
-                mapInstanceRef.current = new google.maps.Map(mapContainerRef.current, {
-                    center: startCoords,
-                    zoom: 13,
-                    disableDefaultUI: true,
-                    zoomControl: false,
-                    styles: [{ featureType: "all", elementType: "geometry", stylers: [{ color: "#f5f5f5" }] }]
-                });
-
-                // Autocomplete setup
-                const setupAutocomplete = (inputRef, setter, coordSetter, type) => {
-                    if (!inputRef.current) return;
-                    const autocomp = new google.maps.places.Autocomplete(inputRef.current);
-                    autocomp.addListener("place_changed", () => {
-                        const place = autocomp.getPlace();
-                        if (place.geometry?.location) {
-                            const pos = {
-                                lat: place.geometry.location.lat(),
-                                lng: place.geometry.location.lng()
-                            };
-                            setter(place.formatted_address || "");
-                            coordSetter(pos);
-                        }
-                    });
-                };
-
-                setupAutocomplete(startInputRef, setStartAddr, setStartCoords, 'start');
-                setupAutocomplete(destInputRef, setDestAddr, setDestCoords, 'dest');
-            }
-            updateMap();
-        } catch (err) {
-            console.error("Map initialization failed:", err);
-            setMapError(err.message);
+        if (!mapInstanceRef.current) {
+            mapInstanceRef.current = new google.maps.Map(mapContainerRef.current, {
+                center: startCoords,
+                zoom: 13,
+                disableDefaultUI: true,
+                styles: [{ featureType: "water", elementType: "geometry", stylers: [{ color: "#e9e9e9" }] }]
+            });
         }
+        updateMap();
     }, [mapLoaded, updateMap]);
 
     return (
-        <div className="route-container">
-            <div className="route-controls">
-                <div className="controls-body">
-                    <label className="section-label first">Start Point</label>
-                    <div className="input-with-icon" style={{ marginBottom: '1.5rem' }}>
-                        <input
-                            ref={startInputRef}
-                            className="input"
-                            style={{ paddingLeft: '1rem', paddingRight: '2.5rem' }}
-                            placeholder="Type start location..."
-                            value={startAddr}
-                            onChange={(e) => setStartAddr(e.target.value)}
-                            onBlur={() => handleManualGeocode(true)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleManualGeocode(true)}
-                        />
-                        <Locate size={18} style={{ left: 'auto', right: '1rem', color: '#f59e0b', cursor: 'pointer' }} onClick={() => handleManualGeocode(true)} />
+        <div className="routes-page" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '1.25rem' }}>
+
+            {/* Header Section */}
+            <div className="page-title-section">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+                    <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#0f172a', fontFamily: 'Lora, serif' }}>
+                        Route & Logistics Planner
+                    </h1>
+                    <span style={{
+                        background: '#e0f2fe',
+                        color: '#0284c7',
+                        fontSize: '0.6rem',
+                        fontWeight: 800,
+                        padding: '0.15rem 0.6rem',
+                        borderRadius: '6px',
+                        letterSpacing: '0.05em'
+                    }}>PRECISION GPS</span>
+                </div>
+                <p style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>
+                    Map out the pilgrimage path, define mandatory stops, and mark essential facilities for devotees.
+                </p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 360px', gap: '2rem', flex: 1, minHeight: 0 }}>
+
+                {/* Left: Map Viewer */}
+                <div style={{
+                    position: 'relative',
+                    borderRadius: '28px',
+                    overflow: 'hidden',
+                    border: '1.5px solid #f1f5f9',
+                    boxShadow: '0 20px 25px -5px rgba(0,0,0,0.05)',
+                    background: '#f8fafc'
+                }}>
+                    <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }}>
+                        {!mapLoaded && <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontWeight: 700 }}>Initializing Interactive Maps...</div>}
                     </div>
 
-                    <label className="section-label">Destination</label>
-                    <div className="input-with-icon" style={{ marginBottom: '1rem' }}>
-                        <input
-                            ref={destInputRef}
-                            className="input"
-                            style={{ paddingLeft: '1rem', paddingRight: '2.5rem' }}
-                            placeholder="Type destination..."
-                            value={destAddr}
-                            onChange={(e) => setDestAddr(e.target.value)}
-                            onBlur={() => handleManualGeocode(false)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleManualGeocode(false)}
-                        />
-                        <Locate size={18} style={{ left: 'auto', right: '1rem', color: '#f59e0b', cursor: 'pointer' }} onClick={() => handleManualGeocode(false)} />
+                    {/* Map Overlays */}
+                    <div style={{ position: 'absolute', top: '1.5rem', left: '1.5rem', display: 'flex', gap: '1rem', zIndex: 1 }}>
+                        <div style={{ background: 'white', padding: '0.5rem 1rem', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Navigation2 size={16} color="#f97316" />
+                            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#1e293b' }}>Total Distance: 12.4 km</span>
+                        </div>
                     </div>
 
-                    <div style={{ height: '1px', background: '#f3f4f6', margin: '1.5rem 0' }}></div>
+                    <div style={{ position: 'absolute', bottom: '1.5rem', right: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', zIndex: 1 }}>
+                        <button className="map-util-btn"><ZoomIn size={20} /></button>
+                        <button className="map-util-btn"><ZoomOut size={20} /></button>
+                        <button className="map-util-btn" style={{ background: '#0f172a', color: 'white' }}><Layers size={20} /></button>
+                    </div>
+                </div>
 
-                    <label className="section-label">
-                        <MapPin size={16} /> Manage Stops ({stops.length})
-                    </label>
+                {/* Right: Controls & Stops */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto', paddingRight: '0.5rem' }}>
 
-                    {stops.map(stop => (
-                        <div key={stop.id} className="stop-card">
-                            <div className="stop-icon-box" style={{ background: stop.color }}>
-                                {stop.icon}
+                    {/* Points Configuration */}
+                    <div style={{ background: 'white', padding: '1.5rem', borderRadius: '24px', border: '1.5px solid #f1f5f9' }}>
+                        <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', display: 'block', marginBottom: '1rem' }}>Destination Routing</label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div style={{ position: 'relative' }}>
+                                <div style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} />
+                                <input style={{ width: '100%', padding: '0.75rem 0.75rem 0.75rem 1.75rem', borderRadius: '12px', border: '1.5px solid #f1f5f9', fontSize: '0.85rem', fontWeight: 700, outline: 'none' }} value={startAddr} readOnly />
                             </div>
-                            <div className="stop-info">
-                                <span className="stop-name">{stop.name}</span>
-                                <span className="stop-type">{stop.type}</span>
-                            </div>
-                            <button className="delete-btn" onClick={() => setStops(prev => prev.filter(s => s.id !== stop.id))}>
-                                <Trash2 size={16} />
-                            </button>
-                        </div>
-                    ))}
-
-                    <div className="add-stop-panel">
-                        <span className="add-stop-title">Add New Stop</span>
-                        <div className="form-group">
-                            <label className="label" style={{ fontSize: '0.75rem' }}>Stop Name / Address</label>
-                            <div className="input-with-icon">
-                                <input className="input" style={{ background: 'white', paddingLeft: '1rem' }} placeholder="Type to search address..." />
-                                <Locate size={18} style={{ left: 'auto', right: '1rem', color: '#f59e0b' }} />
+                            <div style={{ position: 'relative' }}>
+                                <div style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', width: '8px', height: '8px', borderRadius: '50%', background: '#1e293b' }} />
+                                <input style={{ width: '100%', padding: '0.75rem 0.75rem 0.75rem 1.75rem', borderRadius: '12px', border: '1.5px solid #f1f5f9', fontSize: '0.85rem', fontWeight: 700, outline: 'none' }} value={destAddr} readOnly />
                             </div>
                         </div>
-                        <button className="btn btn-outline" style={{ width: '100%', background: '#fff7ed', border: '1px solid #ffedd5', color: '#f59e0b', fontSize: '0.85rem' }}>
-                            + Confirm Stop
-                        </button>
+                        <button style={{ width: '100%', marginTop: '1rem', padding: '0.75rem', borderRadius: '12px', border: 'none', background: '#f1f5f9', color: '#475569', fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer' }}>Edit Coordinates</button>
+                    </div>
+
+                    {/* Stops List */}
+                    <div style={{ flex: 1 }}>
+                        <h3 style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between' }}>
+                            Intermediate Stops ({stops.length})
+                            <span style={{ color: '#f97316', cursor: 'pointer' }}>+ Add Stop</span>
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {stops.map(stop => (
+                                <div key={stop.id} style={{
+                                    background: 'white',
+                                    padding: '1rem',
+                                    borderRadius: '18px',
+                                    border: '1.5px solid #f1f5f9',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '1rem',
+                                    transition: 'all 0.2s'
+                                }} className="stop-row">
+                                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: stop.color + '15', color: stop.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        {stop.icon}
+                                    </div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>{stop.name}</div>
+                                        <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>{stop.type}</div>
+                                    </div>
+                                    <button style={{ background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer' }}><Trash2 size={16} /></button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Legend Box */}
+                    <div style={{ background: '#f8fafc', padding: '1.25rem', borderRadius: '20px', border: '1.5px solid #f1f5f9' }}>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', marginBottom: '0.75rem' }}>MAP LEGEND</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', fontWeight: 700 }}> <Circle size={8} fill="#f59e0b" color="#f59e0b" /> Food Point </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', fontWeight: 700 }}> <Circle size={8} fill="#ef4444" color="#ef4444" /> Medical </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', fontWeight: 700 }}> <Circle size={8} fill="#3b82f6" color="#3b82f6" /> Rest Stop </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', fontWeight: 700 }}> <Circle size={8} fill="#10b981" color="#10b981" /> Start Point </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <div className="map-view">
-                <div className="map-overlay-msg">
-                    <div style={{ width: '10px', height: '10px', background: '#f59e0b', borderRadius: '50%' }}></div>
-                    Drag markers or search to update the route
-                </div>
-
-                <div
-                    ref={mapContainerRef}
-                    style={{ width: '100%', height: '100%', background: '#f0f2f5', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                    {!mapLoaded && !mapError && <div style={{ color: '#6b7280' }}>Loading Google Maps...</div>}
-                    {mapError && <div style={{ color: '#ef4444', textAlign: 'center', padding: '1rem' }}>Map Load Error: {mapError}</div>}
-                </div>
-
-                <div className="map-controls">
-                    <button className="map-btn" onClick={() => mapInstanceRef.current?.setZoom(mapInstanceRef.current.getZoom() + 1)}><ZoomIn size={20} /></button>
-                    <button className="map-btn" onClick={() => mapInstanceRef.current?.setZoom(mapInstanceRef.current.getZoom() - 1)}><ZoomOut size={20} /></button>
-                    <button className="map-btn" style={{ marginTop: '0.5rem' }} onClick={() => {
-                        if (navigator.geolocation) {
-                            navigator.geolocation.getCurrentPosition((position) => {
-                                const pos = { lat: position.coords.latitude, lng: position.coords.longitude };
-                                mapInstanceRef.current.setCenter(pos);
-                            });
-                        }
-                    }}><Navigation size={20} /></button>
-                </div>
-            </div>
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                .map-util-btn {
+                    width: 40px; height: 40px; border-radius: 10px; border: none; background: white; 
+                    box-shadow: 0 4px 6px rgba(0,0,0,0.1); color: #64748b; cursor: pointer;
+                    display: flex; alignItems: center; justifyContent: center;
+                }
+                .stop-row:hover { border-color: #f1f5f9 !important; background: #fffaf5; }
+                `
+            }} />
         </div>
     );
 }
