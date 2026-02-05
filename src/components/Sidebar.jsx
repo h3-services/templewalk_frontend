@@ -11,7 +11,7 @@ import {
 
 export function Sidebar({ activeTab, setActiveTab }) {
     const navItems = [
-        { id: 'Dashboard', icon: <Calendar size={20} />, label: 'Dashboard' },
+        { id: 'Dashboard', icon: <Calendar size={20} />, label: 'Setup Pathayatra' },
         { id: 'Devotees', icon: <Users size={20} />, label: 'Devotees' },
         { id: 'Volunteers', icon: <UserSquare2 size={20} />, label: 'Volunteers' },
         { id: 'Notifications', icon: <Bell size={20} />, label: 'Notifications' },

@@ -22,22 +22,7 @@ export function SideCards() {
                 </div>
             </div>
 
-            <div className="info-card help-card">
-                <div className="help-card-header">
-                    <div className="help-icon">
-                        <HelpCircle size={20} />
-                    </div>
-                    <h4 style={{ fontWeight: 700 }}>Need Help?</h4>
-                </div>
-                <p>Our support team is available to help you configure your spiritual journey details.</p>
-                <button
-                    onClick={() => alert("Connecting you with an expert...")}
-                    className="btn btn-outline"
-                    style={{ width: '100%', borderColor: '#f3f4f6', color: 'var(--text-main)' }}
-                >
-                    Talk to an Expert
-                </button>
-            </div>
+
         </div>
     );
 }

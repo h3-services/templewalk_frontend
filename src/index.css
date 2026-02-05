@@ -296,6 +296,16 @@ h3 {
     border-color: var(--primary);
 }
 
+.step.completed .step-num {
+    background: #22c55e;
+    color: white;
+    border-color: #22c55e;
+}
+
+.step.completed {
+    color: #22c55e;
+}
+
 /* Content Grid */
 .content-grid {
     display: grid;

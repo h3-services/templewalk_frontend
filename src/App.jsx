@@ -36,7 +36,7 @@ function App() {
     const [lastSaved, setLastSaved] = useState('10:45 AM');
 
     const handleSaveNext = () => {
-        if (currentStep < 4) {
+        if (currentStep < 3) {
             setCurrentStep(prev => prev + 1);
             setLastSaved(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         } else {
@@ -85,9 +85,6 @@ function App() {
                                     <RoutesAndStops />
                                 )}
                                 {currentStep === 3 && (
-                                    <SongsUpload />
-                                )}
-                                {currentStep === 4 && (
                                     <PaymentConfig />
                                 )}
 
@@ -107,8 +104,8 @@ function App() {
                                             className="btn btn-primary"
                                             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                                         >
-                                            {currentStep === 4 ? 'Complete' : 'Save & Next'}
-                                            {currentStep < 4 ? <ArrowRight size={18} /> : <Check size={18} />}
+                                            {currentStep === 3 ? 'Complete' : 'Save & Next'}
+                                            {currentStep < 3 ? <ArrowRight size={18} /> : <Check size={18} />}
                                         </button>
                                     </div>
                                 </div>
