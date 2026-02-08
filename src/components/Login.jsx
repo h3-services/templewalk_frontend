@@ -25,7 +25,7 @@ export function Login() {
             alignItems: 'center',
             justifyContent: 'center',
             minHeight: '100vh',
-            background: `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.6)), url('/temple%20img.jpg')`,
+            background: `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.6)), url('/temple img.jpg')`,
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             fontFamily: 'Outfit, sans-serif'

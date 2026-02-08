@@ -61,16 +61,6 @@ export function Settings() {
 
     return (
         <div className="settings-page" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1, minHeight: 0 }}>
-            {/* Header */}
-            <div>
-                <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#1e293b', fontFamily: 'Lora, serif', marginBottom: '0.25rem' }}>
-                    Settings
-                </h1>
-                <p style={{ fontSize: '0.9rem', color: '#64748b', fontWeight: 600 }}>
-                    Manage application preferences and configurations.
-                </p>
-            </div>
-
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: '2rem' }}>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>

@@ -12,14 +12,15 @@ import {
     LayoutDashboard,
     Wallet,
     Banknote,
-    Landmark
+    Landmark,
+    Map
 } from 'lucide-react';
 
 export function Sidebar() {
     const { appConfig, logout, user } = useConfig();
 
     const navItems = [
-        { id: 'Dashboard', icon: <LayoutDashboard size={22} />, label: 'Dashboard', path: '/' },
+        { id: 'Dashboard', icon: <LayoutDashboard size={22} />, label: 'Dashboard', path: '/dashboard' },
         { id: 'Devotees', icon: <Users size={22} />, label: 'Devotees', path: '/devotees' },
         { id: 'Volunteers', icon: <UserSquare2 size={22} />, label: 'Volunteers', path: '/volunteers' },
         { id: 'Notifications', icon: <Bell size={22} />, label: 'Notifications', path: '/notifications' },
@@ -60,19 +61,18 @@ export function Sidebar() {
                         fontWeight: 800,
                         color: '#0f172a',
                         lineHeight: 1.2,
-                        marginBottom: '0.2rem',
-                        whiteSpace: 'pre-line'
+                        marginBottom: '0.2rem'
                     }}>
-                        {appConfig?.title ? appConfig.title.replace(/ /g, '\n') : 'TEMPLE\nADMIN'}
+                        ADMIN
                     </h1>
-                    <p style={{ fontSize: '0.6rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{appConfig?.subtitle || 'CONSOLE'}</p>
+                    <p style={{ fontSize: '0.6rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>DASHBOARD</p>
                 </div>
             </div>
 
             {/* Nav Items */}
             <ul className="nav-links" style={{ padding: '0 1rem', flex: 1 }}>
                 {navItems.map((item) => (
-                    <li key={item.id} style={{ listStyle: 'none', marginBottom: '0.5rem' }}>
+                    <li key={item.id} style={{ listStyle: 'none', margin: '0.5rem 0' }}>
                         <NavLink
                             to={item.path}
                             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
@@ -87,7 +87,9 @@ export function Sidebar() {
                                 background: isActive ? '#FFF7ED' : 'transparent',
                                 fontSize: '0.95rem',
                                 fontWeight: isActive ? 800 : 700,
-                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                height: '48px',
+                                boxSizing: 'border-box'
                             })}
                         >
                             {({ isActive }) => (

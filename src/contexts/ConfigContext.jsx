@@ -9,7 +9,7 @@ export const ConfigProvider = ({ children }) => {
     const [appConfig, setAppConfig] = useState({
         title: 'PANGUNI UTHTHIRAM DFW WALK',
         subtitle: 'ADMIN CONSOLE',
-        logo: '/temple%20logo.jpg' // Default logo
+        logo: '/temple logo.jpg' // Default logo
     });
 
     // Auth State
@@ -23,7 +23,7 @@ export const ConfigProvider = ({ children }) => {
             try {
                 const parsed = JSON.parse(storedConfig);
                 if (parsed && typeof parsed === 'object') {
-                    if (!parsed.logo) parsed.logo = '/temple%20logo.jpg';
+                    if (!parsed.logo) parsed.logo = '/temple logo.jpg';
                     setAppConfig(prev => ({ ...prev, ...parsed }));
                 }
             } catch (e) {

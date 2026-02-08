@@ -17,7 +17,7 @@ import {
     Volunteers,
     Notifications,
     SideCards,
-    Dashboard,
+    LiveDashboard,
     Donations,
     EventsManagement,
     Settings,
@@ -186,14 +186,14 @@ function AuthenticatedApp() {
 
     return (
         <Routes>
-            <Route path="/" element={<MainLayout><Dashboard /></MainLayout>} />
+            <Route path="/dashboard" element={<MainLayout><LiveDashboard /></MainLayout>} />
             {/* Keeping Events Route accessible if needed, via Dashboard Button */}
             <Route path="/events" element={<EventsPage />} />
             <Route path="/devotees" element={<MainLayout><Devotees /></MainLayout>} />
             <Route path="/volunteers" element={<MainLayout><Volunteers /></MainLayout>} />
             <Route path="/notifications" element={<MainLayout><Notifications /></MainLayout>} />
             <Route path="/settings" element={<MainLayout><Settings /></MainLayout>} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
     );
 }

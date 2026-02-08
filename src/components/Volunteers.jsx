@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     Phone,
     Briefcase,
@@ -13,13 +13,20 @@ import {
     Calendar,
     MessageCircle,
     Search,
-    ArrowUpRight
+    ArrowUpRight,
+    Mail
 } from 'lucide-react';
 
 export function Volunteers() {
     const [activeTab, setActiveTab] = useState('Pending Approvals (12)');
 
     const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(5);
+
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, searchTerm]);
 
     const tabs = [
         'Pending Approvals (12)',
@@ -28,39 +35,13 @@ export function Volunteers() {
     ];
 
     const activeVolunteersData = [
-        {
-            id: 1,
-            name: "Priya Sharma",
-            event: "Morning Puja",
-            role: "Crowd Control",
-            shift: "4h remaining",
-            status: "online",
-            onDuty: true,
-            initials: "PS",
-            color: "#fbbf24"
-        },
-        {
-            id: 2,
-            name: "Arjun Kumar",
-            event: "Anna Dhanam",
-            role: "Food Serving",
-            shift: "1.5h remaining",
-            status: "online",
-            onDuty: true,
-            initials: "AK",
-            color: "#34d399"
-        },
-        {
-            id: 3,
-            name: "Ramesh Varma",
-            previous: "Deepotsavam",
-            role: "Logistics",
-            lastActive: "2 days ago",
-            status: "offline",
-            onDuty: false,
-            initials: "RV",
-            color: "#f87171"
-        }
+        { id: 1, name: "Priya Sharma", event: "Morning Puja", role: "Crowd Control", shift: "4h remaining", status: "online", onDuty: true, initials: "PS", color: "#fbbf24", phone: "+91 98765 43210", email: "priya.s@email.com" },
+        { id: 2, name: "Arjun Kumar", event: "Anna Dhanam", role: "Food Serving", shift: "1.5h remaining", status: "online", onDuty: true, initials: "AK", color: "#34d399", phone: "+91 98222 11100", email: "arjun.k@email.com" },
+        { id: 3, name: "Ramesh Varma", previous: "Deepotsavam", role: "Logistics", lastActive: "2 days ago", status: "offline", onDuty: false, initials: "RV", color: "#f87171", phone: "+91 91234 56789", email: "ramesh@email.com" },
+        { id: 4, name: "Suresh Raina", event: "Vahan Seva", role: "Security", shift: "2h remaining", status: "online", onDuty: true, initials: "SR", color: "#F3E5F5", phone: "+91 91234 56789", email: "suresh@email.com" },
+        { id: 5, name: "Anjali Devi", event: "Prasadam", role: "Volunteer", shift: "Done", status: "offline", onDuty: false, initials: "AD", color: "#FCE4EC", phone: "+91 94567 12345", email: "anjali@email.com" },
+        { id: 6, name: "Vikram Seth", event: "Evening Puja", role: "Coordination", shift: "5h remaining", status: "online", onDuty: true, initials: "VS", color: "#E0F2F1", phone: "+91 98761 23456", email: "vikram@email.com" },
+        { id: 7, name: "Lakshmi Bai", event: "Flower Seva", role: "Decorator", shift: "1h remaining", status: "online", onDuty: true, initials: "LB", color: "#FFFDE7", phone: "+91 99887 76655", email: "lakshmi@email.com" }
     ];
 
     const historyVolunteersData = [
@@ -74,7 +55,9 @@ export function Volunteers() {
             outcome: "COMPLETED",
             dotColor: "#f97316",
             initials: "PS",
-            color: "#fbbf24"
+            color: "#fbbf24",
+            phone: "+91 98765 43210",
+            email: "priya.s@email.com"
         },
         {
             id: 2,
@@ -86,7 +69,9 @@ export function Volunteers() {
             outcome: "REJECTED",
             dotColor: "#fbbf24",
             initials: "SK",
-            color: "#f1f5f9"
+            color: "#f1f5f9",
+            phone: "+91 98222 11100",
+            email: "suresh@email.com"
         },
         {
             id: 3,
@@ -98,7 +83,9 @@ export function Volunteers() {
             outcome: "COMPLETED",
             dotColor: "#3b82f6",
             initials: "AK",
-            color: "#34d399"
+            color: "#34d399",
+            phone: "+91 99000 88777",
+            email: "arjun.k@email.com"
         },
         {
             id: 4,
@@ -110,96 +97,47 @@ export function Volunteers() {
             outcome: "WITHDRAWN",
             dotColor: "#94a3b8",
             initials: "MN",
-            color: "#ffedd5"
+            color: "#ffedd5",
+            phone: "+91 94444 33333",
+            email: "meera.n@email.com"
         }
     ];
 
-    const pendingVolunteers = [
-        {
-            id: 1,
-            name: "Priya Sharma",
-            time: "Applied 2h ago",
-            phone: "+91 98765 43210",
-            interest: "Event Coordination",
-            location: "Chennai, TN",
-            initials: "PS",
-            color: "#fbbf24",
-            status: "online"
-        },
-        {
-            id: 2,
-            name: "Arjun Kumar",
-            time: "Applied 5h ago",
-            phone: "+91 99000 11223",
-            interest: "Food Distribution",
-            location: "Madurai, TN",
-            initials: "AK",
-            color: "#34d399",
-            status: "offline"
-        },
-        {
-            id: 3,
-            name: "Ramesh Varma",
-            time: "Applied Yesterday",
-            phone: "+91 91234 56789",
-            interest: "Crowd Control",
-            location: "Trichy, TN",
-            initials: "RV",
-            color: "#f87171",
-            status: "online"
-        }
-    ];
+    const [pendingVols, setPendingVols] = useState([
+        { id: 1, name: "Priya Sharma", time: "Applied 2h ago", phone: "+91 98765 43210", interest: "Event Coordination", location: "Chennai, TN", initials: "PS", color: "#fbbf24", status: "online", email: "priya.s@email.com", decision: null },
+        { id: 2, name: "Arjun Kumar", time: "Applied 5h ago", phone: "+91 99000 11223", interest: "Food Distribution", location: "Madurai, TN", initials: "AK", color: "#34d399", status: "offline", email: "arjun.k@email.com", decision: null },
+        { id: 3, name: "Ramesh Varma", time: "Applied Yesterday", phone: "+91 91234 56789", interest: "Crowd Control", location: "Trichy, TN", initials: "RV", color: "#f87171", status: "online", email: "ramesh.v@email.com", decision: null },
+        { id: 4, name: "Deepika P.", time: "Applied 1h ago", phone: "+91 94444 33333", interest: "Guest Management", location: "Coimbatore, TN", initials: "DP", color: "#F1F8E9", status: "online", email: "deepika@email.com", decision: null },
+        { id: 5, name: "Kiran Bedi", time: "Applied 3h ago", phone: "+91 95555 66666", interest: "Public Safety", location: "Salem, TN", initials: "KB", color: "#E1F5FE", status: "offline", email: "kiran@email.com", decision: null }
+    ]);
 
-    const filteredActive = activeVolunteersData.filter(v =>
-        v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        v.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        v.event.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    const filteredPending = pendingVolunteers.filter(v =>
-        v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        v.interest.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const handleDecision = (id, decision) => {
+        setPendingVols(prev => prev.map(v => v.id === id ? { ...v, decision } : v));
+    };
 
     const filteredHistory = historyVolunteersData.filter(v =>
         v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         v.event.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const currentListData = activeTab === 'History' ? filteredHistory :
+        activeTab.includes('Active') ? filteredActive : filteredPending;
+
+    const totalPages = Math.ceil(currentListData.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const currentItems = currentListData.slice(startIndex, startIndex + itemsPerPage);
+
+    const handlePrevious = () => setCurrentPage(p => Math.max(1, p - 1));
+    const handleNext = () => setCurrentPage(p => Math.min(totalPages, p + 1));
+
     return (
         <div className="volunteers-page" style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, gap: '1rem' }}>
 
-            {/* Header Section */}
-            <div className="page-title-section">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
-                    <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', fontFamily: 'Lora, serif' }}>
-                        {activeTab === 'History' ? 'Volunteer Activity History' : (activeTab.includes('Active') ? 'Active Volunteers' : 'Manage Volunteers')}
-                    </h1>
-                    <span style={{
-                        background: '#eff6ff',
-                        color: '#3b82f6',
-                        fontSize: '0.6rem',
-                        fontWeight: 800,
-                        padding: '0.15rem 0.6rem',
-                        borderRadius: '6px',
-                        letterSpacing: '0.05em'
-                    }}>LIVE SESSION</span>
-                </div>
-                <p style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>
-                    {activeTab === 'History'
-                        ? 'Archive of past assignments, completed applications, and event outcomes.'
-                        : (activeTab.includes('Active')
-                            ? 'Monitor and message currently active temple volunteers'
-                            : 'Review applications and coordinate active temple volunteers')}
-                </p>
-            </div>
+            {/* Content Section - Full Width */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, minHeight: 0 }}>
 
-            {/* Content Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: '1.5rem', flex: 1, minHeight: 0 }}>
-
-                {/* Left Column: Tabs and List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: 0 }}>
-                    {/* Navigation Tabs */}
+                {/* Navigation & Search Row */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div style={{ display: 'flex', borderBottom: '1.5px solid #f1f5f9' }}>
                         {tabs.map(tab => (
                             <button
@@ -270,7 +208,7 @@ export function Volunteers() {
                             }} />
                             <input
                                 type="text"
-                                placeholder="Search volunteers by name, role or assignment..."
+                                placeholder={`Search ${activeTab.split(' ')[0]} volunteers...`}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 style={{
@@ -287,456 +225,320 @@ export function Volunteers() {
                             />
                         </div>
                     )}
+                </div>
 
-                    {/* Scrollable List Area */}
-                    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1rem', paddingRight: '0.5rem' }}>
+                {/* Table Container - Devotee Page Style */}
+                <div style={{
+                    background: 'white',
+                    borderRadius: '28px',
+                    border: '1.5px solid #f1f5f9',
+                    overflow: 'hidden',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column'
+                }}>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: activeTab === 'History' ? '1.5fr 1fr 1.5fr 1fr' : '2.5fr 1.5fr 1fr',
+                        padding: '1.25rem 2rem',
+                        borderBottom: '1.5px solid #f1f5f9',
+                        background: '#fcfcfc'
+                    }}>
+                        {(activeTab === 'History' ? ['VOLUNTEER', 'DATE', 'CONTACT INFO', 'STATUS'] : ['VOLUNTEER', 'CONTACT INFO', 'STATUS']).map(h => (
+                            <span key={h} style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', letterSpacing: '0.05em' }}>{h}</span>
+                        ))}
+                    </div>
+
+                    <div style={{
+                        overflowY: 'auto',
+                        flex: 1,
+                        maxHeight: '500px',
+                        scrollbarWidth: 'thin',
+                        scrollbarColor: '#f1f5f9 transparent'
+                    }}>
                         {activeTab === 'History' ? (
-                            <div style={{ background: 'white', borderRadius: '24px', border: '1.5px solid #f1f5f9', overflow: 'hidden' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1.5fr) 1fr 1.5fr 1fr', padding: '0.75rem 1.5rem', borderBottom: '1.5px solid #f1f5f9', background: '#fcfcfc' }}>
-                                    {['VOLUNTEER NAME', 'DATE', 'ACTIVITY/EVENT', 'OUTCOME'].map(h => (
-                                        <span key={h} style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', letterSpacing: '0.05em' }}>{h}</span>
-                                    ))}
-                                </div>
-                                {filteredHistory.map((v, i) => (
-                                    <div key={v.id} style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: 'minmax(200px, 1.5fr) 1fr 1.5fr 1fr',
-                                        padding: '1rem 1.5rem',
-                                        borderBottom: i === historyVolunteersData.length - 1 ? 'none' : '1.5px solid #f8fafc',
-                                        alignItems: 'center'
-                                    }}>
-                                        {/* Name */}
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: v.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#1e293b', fontSize: '0.85rem' }}>{v.initials}</div>
-                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>{v.name}</span>
-                                                <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8' }}>{v.subStatus}</span>
-                                            </div>
-                                        </div>
-                                        {/* Date */}
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>{v.date}</span>
-                                            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8' }}>{v.time}</span>
-                                        </div>
-                                        {/* Event */}
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: v.dotColor }} />
-                                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>{v.event}</span>
-                                        </div>
-                                        {/* Outcome */}
-                                        <div>
-                                            <span style={{
-                                                fontSize: '0.6rem',
-                                                fontWeight: 800,
-                                                padding: '0.35rem 0.75rem',
-                                                borderRadius: '8px',
-                                                background: v.outcome === 'COMPLETED' ? '#ecfdf5' : (v.outcome === 'REJECTED' ? '#fff1f2' : '#f1f5f9'),
-                                                color: v.outcome === 'COMPLETED' ? '#10b981' : (v.outcome === 'REJECTED' ? '#ef4444' : '#64748b'),
-                                                letterSpacing: '0.05em'
-                                            }}>{v.outcome}</span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : activeTab.includes('Active') ? (
-                            filteredActive.map(v => (
+                            currentItems.map((v, i) => (
                                 <div key={v.id} style={{
-                                    background: 'white',
-                                    padding: '1.25rem 1.5rem',
-                                    borderRadius: '20px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '1.5rem',
-                                    boxShadow: 'var(--card-shadow)',
-                                    border: '1.5px solid #f8fafc',
-                                    transition: 'transform 0.2s ease',
-                                }} className="volunteer-row-card">
-                                    {/* Avatar */}
-                                    <div style={{
-                                        width: '64px',
-                                        height: '64px',
-                                        borderRadius: '50%',
-                                        background: '#f1f5f9',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '1.2rem',
-                                        fontWeight: 800,
-                                        color: v.color,
-                                        position: 'relative',
-                                        flexShrink: 0
-                                    }}>
-                                        {v.initials}
-                                        <div style={{
-                                            position: 'absolute',
-                                            bottom: '2px',
-                                            right: '2px',
-                                            width: '14px',
-                                            height: '14px',
-                                            borderRadius: '50%',
-                                            background: v.status === 'online' ? '#10b981' : '#cbd5e1',
-                                            border: '2px solid white'
-                                        }} />
-                                    </div>
-
-                                    {/* Info Grid */}
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-                                            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1e293b' }}>{v.name}</h3>
-                                            <span style={{
-                                                fontSize: '0.65rem',
-                                                fontWeight: 800,
-                                                padding: '0.2rem 0.6rem',
-                                                borderRadius: '6px',
-                                                background: v.onDuty ? '#ecfdf5' : '#f1f5f9',
-                                                color: v.onDuty ? '#10b981' : '#64748b',
-                                                letterSpacing: '0.05em'
-                                            }}>
-                                                {v.onDuty ? 'ON DUTY' : 'OFF DUTY'}
-                                            </span>
+                                    display: 'grid',
+                                    gridTemplateColumns: '1.5fr 1fr 1.5fr 1fr',
+                                    padding: '1rem 2rem',
+                                    borderBottom: i === currentItems.length - 1 ? 'none' : '1.5px solid #f8fafc',
+                                    alignItems: 'center'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                        <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: v.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#1e293b', fontSize: '0.85rem' }}>{v.initials}</div>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>{v.name}</span>
+                                            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8' }}>{v.subStatus}</span>
                                         </div>
-
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#64748b', fontSize: '0.8rem', fontWeight: 600 }}>
-                                                <Calendar size={14} style={{ color: '#f97316' }} />
-                                                <span style={{ color: '#94a3b8' }}>Event:</span> {v.event || v.previous}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>{v.date}</span>
+                                        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8' }}>{v.time}</span>
+                                    </div>
+                                    <div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>
+                                                <Phone size={14} color="#F97316" /> {v.phone}
                                             </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#64748b', fontSize: '0.8rem', fontWeight: 600 }}>
-                                                <Briefcase size={14} style={{ color: '#f97316' }} />
-                                                <span style={{ color: '#94a3b8' }}>Role:</span> {v.role}
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#64748b', fontSize: '0.8rem', fontWeight: 600 }}>
-                                                <TrendingUp size={14} style={{ color: '#94a3b8' }} />
-                                                <span style={{ color: '#94a3b8' }}>{v.shift ? 'Shift:' : 'Last:'}</span> {v.shift || v.lastActive}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>
+                                                <Mail size={14} color="#F97316" /> {v.email}
                                             </div>
                                         </div>
                                     </div>
-
-                                    {/* Actions */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'center' }}>
-                                        <button style={{
-                                            padding: '0.5rem 1.5rem',
-                                            borderRadius: '12px',
-                                            border: 'none',
-                                            background: v.onDuty ? 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)' : '#f1f5f9',
-                                            color: v.onDuty ? 'white' : '#64748b',
+                                    <div>
+                                        <span style={{
+                                            fontSize: '0.6rem',
                                             fontWeight: 800,
-                                            fontSize: '0.85rem',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.5rem',
-                                            width: '120px',
-                                            justifyContent: 'center'
-                                        }} className="action-btn">
-                                            <MessageCircle size={16} />
-                                            Message
-                                        </button>
-                                        <button style={{
-                                            background: 'none',
-                                            border: 'none',
-                                            color: '#94a3b8',
-                                            fontSize: '0.7rem',
-                                            fontWeight: 700,
-                                            textTransform: 'uppercase',
+                                            padding: '0.35rem 0.75rem',
+                                            borderRadius: '8px',
+                                            background: v.outcome === 'COMPLETED' ? '#ecfdf5' : (v.outcome === 'REJECTED' ? '#fff1f2' : '#f1f5f9'),
+                                            color: v.outcome === 'COMPLETED' ? '#10b981' : (v.outcome === 'REJECTED' ? '#ef4444' : '#64748b'),
+                                            letterSpacing: '0.05em'
+                                        }}>{v.outcome}</span>
+                                    </div>
+                                </div>
+                            ))
+                        ) : activeTab.includes('Active') ? (
+                            currentItems.map((v, i) => (
+                                <div key={v.id} style={{
+                                    display: 'grid', gridTemplateColumns: '2.5fr 1.5fr 1fr',
+                                    padding: '1rem 2rem',
+                                    borderBottom: i === currentItems.length - 1 ? 'none' : '1.5px solid #f8fafc',
+                                    alignItems: 'center'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                        <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: v.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: v.color, fontSize: '1rem' }}>{v.initials}</div>
+                                        <div>
+                                            <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{v.name}</div>
+                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>{v.role} • {v.event}</div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>
+                                                <Phone size={14} color="#F97316" /> {v.phone}
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>
+                                                <Mail size={14} color="#F97316" /> {v.email}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span style={{
+                                            padding: '0.4rem 0.85rem',
+                                            borderRadius: '10px',
+                                            fontSize: '0.65rem',
+                                            fontWeight: 800,
+                                            background: v.onDuty ? '#f0fdf4' : '#f1f5f9',
+                                            color: v.onDuty ? '#10b981' : '#64748b',
                                             letterSpacing: '0.05em',
-                                            cursor: 'pointer'
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem'
                                         }}>
-                                            VIEW PROFILE
-                                        </button>
+                                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: v.onDuty ? '#10b981' : '#64748b' }}></span>
+                                            {v.onDuty ? 'ON DUTY' : 'OFF DUTY'}
+                                        </span>
                                     </div>
                                 </div>
                             ))
                         ) : (
-                            filteredPending.map(v => (
+                            currentItems.map((v, i) => (
                                 <div key={v.id} style={{
-                                    background: 'white',
-                                    padding: '1rem 1.25rem',
-                                    borderRadius: '18px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '1rem',
-                                    boxShadow: 'var(--card-shadow)',
-                                    border: '1.5px solid #f8fafc',
-                                    transition: 'transform 0.2s ease',
-                                }} className="volunteer-row-card">
-                                    {/* Avatar */}
-                                    <div style={{
-                                        width: '56px',
-                                        height: '56px',
-                                        borderRadius: '50%',
-                                        background: '#f1f5f9',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '1.1rem',
-                                        fontWeight: 800,
-                                        color: v.color,
-                                        position: 'relative',
-                                        flexShrink: 0
-                                    }}>
-                                        {v.initials}
-                                        <div style={{
-                                            position: 'absolute',
-                                            bottom: '2px',
-                                            right: '2px',
-                                            width: '12px',
-                                            height: '12px',
-                                            borderRadius: '50%',
-                                            background: v.status === 'online' ? '#10b981' : '#cbd5e1',
-                                            border: '2px solid white'
-                                        }} />
-                                    </div>
-
-                                    {/* Info */}
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.4rem' }}>
-                                            <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#1e293b' }}>{v.name}</h3>
-                                            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600 }}>{v.time}</span>
+                                    display: 'grid', gridTemplateColumns: '2.5fr 1.5fr 1fr',
+                                    padding: '1rem 2rem',
+                                    borderBottom: i === currentItems.length - 1 ? 'none' : '1.5px solid #f8fafc',
+                                    alignItems: 'center'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                        <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: v.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: v.color, fontSize: '1rem' }}>{v.initials}</div>
+                                        <div>
+                                            <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{v.name}</div>
+                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>{v.interest} • {v.location}</div>
                                         </div>
-
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#64748b', fontSize: '0.8rem', fontWeight: 600 }}>
-                                                <Phone size={14} /> {v.phone}
+                                    </div>
+                                    <div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>
+                                                <Phone size={14} color="#F97316" /> {v.phone}
                                             </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#64748b', fontSize: '0.8rem', fontWeight: 600 }}>
-                                                <Briefcase size={14} /> {v.interest}
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#64748b', fontSize: '0.8rem', fontWeight: 600 }}>
-                                                <MapPin size={14} /> {v.location}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>
+                                                <Mail size={14} color="#F97316" /> {v.email}
                                             </div>
                                         </div>
                                     </div>
-
-                                    {/* Actions */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                        <button style={{
-                                            width: '36px',
-                                            height: '36px',
-                                            borderRadius: '12px',
-                                            border: '1.5px solid #f1f5f9',
-                                            background: 'transparent',
-                                            color: '#ef4444',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s'
-                                        }} className="action-btn">
-                                            <X size={18} strokeWidth={3} />
-                                        </button>
-                                        <button style={{
-                                            padding: '0.5rem 1.25rem',
-                                            borderRadius: '12px',
-                                            border: 'none',
-                                            background: '#fff7ed',
-                                            color: '#f97316',
-                                            fontWeight: 800,
-                                            fontSize: '0.85rem',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s'
-                                        }} className="action-btn">
-                                            Approve
-                                        </button>
+                                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                                        {v.decision === 'approved' ? (
+                                            <div style={{
+                                                padding: '0.5rem 1.25rem',
+                                                borderRadius: '12px',
+                                                background: '#f0fdf4',
+                                                color: '#10b981',
+                                                fontSize: '0.7rem',
+                                                fontWeight: 800,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem',
+                                                border: '1.5px solid #dcfce7'
+                                            }}>
+                                                <CheckCircle2 size={16} /> APPROVED
+                                            </div>
+                                        ) : v.decision === 'rejected' ? (
+                                            <div style={{
+                                                padding: '0.5rem 1.25rem',
+                                                borderRadius: '12px',
+                                                background: '#fef2f2',
+                                                color: '#ef4444',
+                                                fontSize: '0.7rem',
+                                                fontWeight: 800,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem',
+                                                border: '1.5px solid #fee2e2'
+                                            }}>
+                                                <X size={16} /> REJECTED
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <button style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.4rem',
+                                                    padding: '0.5rem 1rem',
+                                                    borderRadius: '12px',
+                                                    border: '1.5px solid #fee2e2',
+                                                    background: '#fef2f2',
+                                                    color: '#ef4444',
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: 800,
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s'
+                                                }}
+                                                    onClick={() => handleDecision(v.id, 'rejected')}
+                                                    onMouseOver={(e) => {
+                                                        e.currentTarget.style.background = '#fee2e2';
+                                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                                    }}
+                                                    onMouseOut={(e) => {
+                                                        e.currentTarget.style.background = '#fef2f2';
+                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                    }}
+                                                    className="reject-btn">
+                                                    <X size={14} strokeWidth={2.5} />
+                                                    REJECT
+                                                </button>
+                                                <button style={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '0.4rem',
+                                                    padding: '0.5rem 1rem',
+                                                    borderRadius: '12px',
+                                                    border: 'none',
+                                                    background: '#008000',
+                                                    color: 'white',
+                                                    fontSize: '0.7rem',
+                                                    fontWeight: 800,
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.2s',
+                                                    boxShadow: '0 4px 12px rgba(0, 128, 0, 0.2)'
+                                                }}
+                                                    onClick={() => handleDecision(v.id, 'approved')}
+                                                    onMouseOver={(e) => {
+                                                        e.currentTarget.style.background = '#006400';
+                                                        e.currentTarget.style.transform = 'translateY(-1px)';
+                                                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 128, 0, 0.3)';
+                                                    }}
+                                                    onMouseOut={(e) => {
+                                                        e.currentTarget.style.background = '#008000';
+                                                        e.currentTarget.style.transform = 'translateY(0)';
+                                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 128, 0, 0.2)';
+                                                    }}
+                                                    className="approve-btn">
+                                                    <CheckCircle2 size={14} strokeWidth={2.5} />
+                                                    APPROVE
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             ))
                         )}
                     </div>
                 </div>
-
-                {/* Right Column: Stats and Filters */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '-3rem', position: 'relative', zIndex: 10 }}>
-                    {/* Stats Box */}
-                    <div style={{
-                        background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-                        padding: '1.5rem',
-                        borderRadius: '24px',
-                        color: 'white',
-                        boxShadow: '0 15px 30px -10px rgba(249, 115, 22, 0.4)',
-                        position: 'relative',
-                        overflow: 'hidden'
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', position: 'relative', zIndex: 1 }}>
-                            <TrendingUp size={18} />
-                            <h3 style={{ fontSize: '1rem', fontWeight: 800, letterSpacing: '0.02em' }}>
-                                {activeTab === 'History' ? 'History Stats' : 'Volunteer Stats'}
-                            </h3>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem', position: 'relative', zIndex: 1 }}>
-                            <div style={{ background: 'rgba(255,255,255,0.15)', padding: '1rem', borderRadius: '16px' }}>
-                                <p style={{ fontSize: '0.6rem', fontWeight: 800, opacity: 0.8, textTransform: 'uppercase', marginBottom: '0.2rem' }}>
-                                    {activeTab === 'History' ? 'COMPLETED' : 'ACTIVE NOW'}
-                                </p>
-                                <h4 style={{ fontSize: '1.25rem', fontWeight: 800 }}>{activeTab === 'History' ? '1.2k' : '148'}</h4>
-                            </div>
-                            <div style={{ background: 'rgba(255,255,255,0.15)', padding: '1rem', borderRadius: '16px' }}>
-                                <p style={{ fontSize: '0.6rem', fontWeight: 800, opacity: 0.8, textTransform: 'uppercase', marginBottom: '0.2rem' }}>
-                                    {activeTab === 'History' ? 'REJECTED' : 'ON DUTY'}
-                                </p>
-                                <h4 style={{ fontSize: '1.25rem', fontWeight: 800 }}>{activeTab === 'History' ? '48' : '42'}</h4>
-                            </div>
-                        </div>
-
-                        <div style={{ background: 'rgba(255,255,255,0.15)', padding: '1.25rem', borderRadius: '20px', position: 'relative', zIndex: 1 }}>
-                            <p style={{ fontSize: '0.6rem', fontWeight: 800, opacity: 0.8, textTransform: 'uppercase', marginBottom: '0.2rem' }}>
-                                {activeTab === 'History' ? 'TOTAL ACTIVITIES' : (activeTab.includes('Active') ? 'ENGAGEMENT RATE' : 'NEW APPLICATIONS')}
-                            </p>
-                            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-                                <h4 style={{ fontSize: '1.75rem', fontWeight: 800 }}>
-                                    {activeTab === 'History' ? '14.5k' : (activeTab.includes('Active') ? '88%' : '12')}
-                                </h4>
-                                {activeTab === 'History' ? <CheckCircle2 size={16} style={{ opacity: 0.8 }} /> : <TrendingUp size={16} style={{ opacity: 0.8 }} />}
-                            </div>
-                        </div>
-
-                        {/* Decor SVG */}
-                        <svg style={{ position: 'absolute', bottom: '-20px', right: '-20px', opacity: 0.1 }} width="200" height="200" viewBox="0 0 200 200">
-                            <path d="M0,100 C0,44.77 44.77,0 100,0 C155.23,0 200,44.77 200,100 C200,155.23 155.23,200 100,200 C44.77,200 0,155.23 0,100" fill="currentColor" />
-                        </svg>
-                    </div>
-
-                    {/* Filters Box */}
-                    <div style={{
-                        background: 'white',
-                        padding: '1.5rem',
-                        borderRadius: '24px',
-                        boxShadow: 'var(--card-shadow)',
-                        border: '1.5px solid #f8fafc'
-                    }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a', marginBottom: '1.25rem' }}>
-                            {activeTab === 'History' ? 'Activity Quick Filter' : 'Quick Filters'}
-                        </h3>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <div className="filter-group">
-                                <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', display: 'block', marginBottom: '0.4rem' }}>
-                                    {activeTab === 'History' ? 'OUTCOME TYPE' : (activeTab.includes('Active') ? 'DUTY STATUS' : 'INTEREST AREA')}
-                                </label>
-                                <div style={{
-                                    background: '#f8fafc',
-                                    padding: '0.75rem 1rem',
-                                    borderRadius: '12px',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    cursor: 'pointer'
-                                }}>
-                                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
-                                        {activeTab === 'History' ? 'All Outcomes' : (activeTab.includes('Active') ? 'All Status' : 'All Areas')}
-                                    </span>
-                                    <ChevronDown size={16} color="#94a3b8" />
-                                </div>
-                            </div>
-
-                            <div className="filter-group">
-                                <label style={{ fontSize: '0.6rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', display: 'block', marginBottom: '0.4rem' }}>
-                                    {activeTab === 'History' ? 'EVENT CATEGORY' : (activeTab.includes('Active') ? 'ACTIVE EVENT' : 'LOCATION')}
-                                </label>
-                                <div style={{
-                                    background: '#f8fafc',
-                                    padding: '0.75rem 1rem',
-                                    borderRadius: '12px',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    cursor: 'pointer'
-                                }}>
-                                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
-                                        {activeTab === 'History' ? 'All Events' : (activeTab.includes('Active') ? 'All Events' : 'Any Location')}
-                                    </span>
-                                    <ChevronDown size={16} color="#94a3b8" />
-                                </div>
-                            </div>
-
-                            <button style={{
-                                width: '100%',
-                                padding: '0.75rem',
-                                borderRadius: '12px',
-                                border: 'none',
-                                background: '#f1f5f9',
-                                color: '#475569',
-                                fontWeight: 800,
-                                fontSize: '0.85rem',
-                                marginTop: '0.25rem',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '0.5rem'
-                            }}>
-                                {activeTab === 'History' ? 'Clear Quick Filters' : (
-                                    <>
-                                        <RotateCcw size={16} />
-                                        Reset Filters
-                                    </>
-                                )}
-                            </button>
-                        </div>
-                    </div>
-
-                </div>
             </div>
 
-            {/* Bottom Bar */}
+            {/* Global Bottom Bar */}
             <div style={{
-                background: 'white',
-                padding: '0.75rem 2rem',
-                margin: '0 -1.5rem -0.75rem',
+                padding: '1.25rem 2rem',
                 borderTop: '1.5px solid #f1f5f9',
                 display: 'flex',
                 justifyContent: 'space-between',
-                alignItems: 'center'
+                alignItems: 'center',
+                background: 'white',
+                margin: '0 -1.5rem -1rem'
             }}>
-                <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>
-                    {activeTab === 'History' ? 'History synced: Today at 10:45 AM' : `Last updated: ${activeTab.includes('Active') ? 'Today at 11:20 AM' : 'Today at 10:45 AM'}`}
-                </span>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button style={{
-                        padding: '0.6rem 1.5rem',
-                        borderRadius: '12px',
-                        border: '1.5px solid #f1f5f9',
-                        background: 'white',
-                        color: '#475569',
-                        fontWeight: 800,
-                        fontSize: '0.85rem',
-                        cursor: 'pointer'
-                    }}>
-                        {activeTab === 'History' ? 'Archive All' : (activeTab.includes('Active') ? 'Export Report' : 'Bulk Reject')}
-                    </button>
-                    <button style={{
-                        padding: '0.6rem 2rem',
-                        borderRadius: '12px',
-                        border: 'none',
-                        background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-                        color: 'white',
-                        fontWeight: 800,
-                        fontSize: '0.85rem',
-                        cursor: 'pointer',
-                        boxShadow: '0 8px 16px -4px rgba(249, 115, 22, 0.3)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.6rem'
-                    }}>
-                        {activeTab === 'History' ? 'Download History CSV' : (activeTab.includes('Active') ? 'Message All Active (42)' : 'Review Next (12)')}
-                        {activeTab === 'History' ? <TrendingUp size={16} style={{ transform: 'rotate(90deg)' }} /> : (activeTab.includes('Active') ? <ArrowUpRight size={16} /> : <RotateCcw size={16} style={{ transform: 'rotate(90deg)' }} />)}
-                    </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#9ca3af', fontWeight: '600' }}>
+                        Show
+                        <select
+                            value={itemsPerPage}
+                            onChange={(e) => {
+                                setItemsPerPage(parseInt(e.target.value));
+                                setCurrentPage(1);
+                            }}
+                            style={{
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                color: '#111827',
+                                border: '1px solid #e5e7eb',
+                                borderRadius: '6px',
+                                padding: '2px 6px',
+                                outline: 'none',
+                                cursor: 'pointer',
+                                backgroundColor: '#f8fafc'
+                            }}
+                        >
+                            {[5, 10, 20, 50].map(val => (
+                                <option key={val} value={val}>{val}</option>
+                            ))}
+                        </select>
+                        of {currentListData.length} entries
+                    </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                        onClick={handlePrevious}
+                        disabled={currentPage === 1}
+                        style={{
+                            ...paginationBtnStyle,
+                            opacity: currentPage === 1 ? 0.5 : 1,
+                            cursor: currentPage === 1 ? 'not-allowed' : 'pointer'
+                        }}
+                    >Previous</button>
+                    <button
+                        onClick={handleNext}
+                        disabled={currentPage === totalPages}
+                        style={{
+                            ...paginationBtnStyle,
+                            opacity: currentPage === totalPages ? 0.5 : 1,
+                            cursor: currentPage === totalPages ? 'not-allowed' : 'pointer'
+                        }}
+                    >Next</button>
                 </div>
             </div>
-
-            <style dangerouslySetInnerHTML={{
-                __html: `
-                .volunteer-row-card:hover {
-                    transform: translateX(8px);
-                    border-color: #fed7aa !important;
-                }
-                .action-btn:hover {
-                    opacity: 0.8;
-                    transform: scale(1.05);
-                }
-            `}} />
         </div>
     );
 }
+
+const paginationBtnStyle = {
+    padding: '6px 14px',
+    fontSize: '12px',
+    fontWeight: '700',
+    color: '#6b7280',
+    backgroundColor: 'white',
+    border: '1px solid #e5e7eb',
+    borderRadius: '8px',
+    cursor: 'pointer'
+};

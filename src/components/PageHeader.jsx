@@ -12,7 +12,7 @@ export function PageHeader({
     const getPageDetails = () => {
         const path = location.pathname;
         switch (path) {
-            case '/':
+            case '/dashboard':
                 return { name: 'DASHBOARD', title: null, action: null };
             case '/events':
                 return {
@@ -40,7 +40,7 @@ export function PageHeader({
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            padding: '0.5rem 0 1.5rem',
+            padding: 0,
             border: 'none',
             background: 'transparent'
         }}>
@@ -55,7 +55,7 @@ export function PageHeader({
                     letterSpacing: '0.05em',
                     color: '#94a3b8'
                 }}>
-                    <Link to="/" style={{ textDecoration: 'none', color: '#94a3b8' }} title="Go to Dashboard">ADMIN</Link>
+                    <Link to="/dashboard" style={{ textDecoration: 'none', color: '#94a3b8' }} title="Go to Dashboard">ADMIN</Link>
                     <ChevronRight size={14} />
 
                     {/* Universal Clickable Parent Logic */}
@@ -82,41 +82,6 @@ export function PageHeader({
             </div>
 
             <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                {/* Specific actions for Devotees Page */}
-                {location.pathname === '/devotees' && (
-                    <>
-                        <button style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#64748b',
-                            fontSize: '0.85rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.4rem'
-                        }}>
-                            Export Directory
-                        </button>
-                        <button style={{
-                            background: '#F97316',
-                            color: 'white',
-                            padding: '0.75rem 1.5rem',
-                            borderRadius: '12px',
-                            border: 'none',
-                            fontWeight: 800,
-                            fontSize: '0.85rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.6rem',
-                            cursor: 'pointer',
-                            boxShadow: '0 4px 12px rgba(249, 115, 22, 0.2)'
-                        }}>
-                            <Plus size={18} strokeWidth={3} /> Register New Devotee
-                        </button>
-                    </>
-                )}
-
                 {/* Specific actions for Event Creation */}
                 {current.action === 'Draft' && (
                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
