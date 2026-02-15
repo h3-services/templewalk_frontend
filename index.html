@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Temple Walk - Admin Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Lora:wght@500;600;700&display=swap"
+        rel="stylesheet">
+    <script type="text/javascript">
+        // Single Page Apps for GitHub Pages
+        // https://github.com/rafgraph/spa-github-pages
+        // This script checks to see if a redirect is present in the query string,
+        // and converts it back into the correct url and adds it to the
+        // browser's history using window.history.replaceState(...),
+        // which won't cause the browser to refresh the page.
+        (function (l) {
+            if (l.search[1] === 'p') {
+                var decoded = l.search.slice(1).split('&').map(function (s) {
+                    return s.replace(/~and~/g, '&')
+                }).filter(function (s) {
+                    return s.slice(0, 2) === 'p='
+                })[0].slice(2);
+                if (decoded !== l.pathname) {
+                    window.history.replaceState(null, null, l.pathname.slice(0, l.pathname.length - l.search.length) + decoded + (l.hash || ''));
+                }
+            }
+        }(window.location))
+    </script>
+</head>
+
+<body>
+    <div id="root"></div>
+    <script
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDVzHEOTEIlIW8_nSeoZORCiEerwWesz5M&libraries=geometry,places&loading=async"
+        async></script>
+    <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>
