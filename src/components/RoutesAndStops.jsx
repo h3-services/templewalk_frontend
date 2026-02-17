@@ -32,6 +32,8 @@ export function RoutesAndStops({ startCoords, destCoords, stops = [], onUpdateSt
 
     const [startAddr, setStartAddr] = useState("Cimarron Family Aquatic Cent");
     const [destAddr, setDestAddr] = useState("DFW Hindu Temple (Default)");
+    const [selectionMode, setSelectionMode] = useState(null); // 'start' | 'dest' | null
+
 
     const [mapLoaded, setMapLoaded] = useState(false);
 
@@ -43,6 +45,33 @@ export function RoutesAndStops({ startCoords, destCoords, stops = [], onUpdateSt
         markersRef.current = [];
 
         const addMarker = (pos, color, title, iconType) => {
+            const google = window.google;
+            if (!google || !mapInstanceRef.current) return;
+
+            // Try AdvancedMarkerElement (requires Map ID, but provides better performance/UX)
+            if (google.maps.marker && google.maps.marker.AdvancedMarkerElement) {
+                try {
+                    const pinElement = new google.maps.marker.PinElement({
+                        background: color,
+                        borderColor: "#FFFFFF",
+                        glyphColor: "#FFFFFF",
+                        scale: 1.0
+                    });
+
+                    const marker = new google.maps.marker.AdvancedMarkerElement({
+                        position: pos,
+                        map: mapInstanceRef.current,
+                        title: title,
+                        content: pinElement.element
+                    });
+                    markersRef.current.push(marker);
+                    return;
+                } catch (e) {
+                    console.warn("AdvancedMarkerElement failed, falling back to Marker:", e);
+                }
+            }
+
+            // Fallback to legacy Marker
             const marker = new google.maps.Marker({
                 position: pos,
                 map: mapInstanceRef.current,
@@ -59,12 +88,22 @@ export function RoutesAndStops({ startCoords, destCoords, stops = [], onUpdateSt
             markersRef.current.push(marker);
         };
 
-        addMarker(startCoords, "#f97316", "Start");
-        addMarker(destCoords, "#1e293b", "End");
-        (stops || []).forEach(s => addMarker(s.coords, s.color, s.name));
+        const safeStart = { lat: Number(startCoords?.lat) || 9.9195, lng: Number(startCoords?.lng) || 78.1193 };
+        const safeDest = { lat: Number(destCoords?.lat) || 9.8329, lng: Number(destCoords?.lng) || 78.0841 };
+
+        addMarker(safeStart, "#f97316", "Start");
+        addMarker(safeDest, "#1e293b", "End");
+        (stops || []).forEach(s => {
+            const safePos = { lat: Number(s.coords?.lat) || 0, lng: Number(s.coords?.lng) || 0 };
+            if (safePos.lat !== 0) addMarker(safePos, s.color, s.name);
+        });
 
         if (polylineRef.current) polylineRef.current.setMap(null);
-        const pathPoints = [startCoords, ...(stops || []).map(s => s.coords), destCoords];
+        const pathPoints = [safeStart, ...(stops || []).map(s => ({
+            lat: Number(s.coords?.lat) || 0,
+            lng: Number(s.coords?.lng) || 0
+        })).filter(p => p.lat !== 0), safeDest];
+
         polylineRef.current = new google.maps.Polyline({
             path: pathPoints,
             geodesic: true,
@@ -101,9 +140,53 @@ export function RoutesAndStops({ startCoords, destCoords, stops = [], onUpdateSt
                     { featureType: "landscape", elementType: "geometry", stylers: [{ color: "#f5f5f5" }] }
                 ]
             });
+
+            // Add Click Listener
+            mapInstanceRef.current.addListener('click', (e) => {
+                const latLng = { lat: e.latLng.lat(), lng: e.latLng.lng() };
+
+                // Logic to update based on selection mode
+                // We use a ref-like approach or functional update to avoid stale state in listener
+                // But since we want to handle address names, we'll use a direct geocoder check
+                const geocoder = new google.maps.Geocoder();
+                geocoder.geocode({ location: e.latLng }, (results, status) => {
+                    let addr = "Custom Location";
+                    if (status === 'OK' && results[0]) {
+                        addr = results[1] ? results[1].formatted_address : results[0].formatted_address;
+                    }
+
+                    // We need to know which mode is active. 
+                    // To handle this in a stable way inside a listener, we can use a window property or a ref
+                    if (window._currentSelectionMode === 'start') {
+                        onUpdateCoords('start', latLng);
+                        setStartAddr(addr);
+                        setSelectionMode(null);
+                        window._currentSelectionMode = null;
+                    } else if (window._currentSelectionMode === 'dest') {
+                        onUpdateCoords('dest', latLng);
+                        setDestAddr(addr);
+                        setSelectionMode(null);
+                        window._currentSelectionMode = null;
+                    } else if (window._currentSelectionMode === 'stop') {
+                        const nameInput = document.getElementById('new-stop-name');
+                        if (nameInput) nameInput.value = addr;
+                        window._tempStopCoords = latLng;
+                        setSelectionMode(null);
+                        window._currentSelectionMode = null;
+                    }
+                });
+            });
+
         }
+
         updateMap();
     }, [mapLoaded, updateMap]);
+
+    // Keep selection mode in a global ref for the map listener
+    useEffect(() => {
+        window._currentSelectionMode = selectionMode;
+    }, [selectionMode]);
+
 
     const getStopStyles = (type) => {
         switch (type) {
@@ -170,11 +253,28 @@ export function RoutesAndStops({ startCoords, destCoords, stops = [], onUpdateSt
                         <div style={{ position: 'relative' }}>
                             <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                             <input
-                                style={inputStyleSmall}
+                                style={{
+                                    ...inputStyleSmall,
+                                    border: selectionMode === 'start' ? '1.5px solid #f97316' : '1.5px solid #f1f5f9',
+                                    boxShadow: selectionMode === 'start' ? '0 0 0 4px rgba(249, 115, 22, 0.1)' : 'none'
+                                }}
                                 value={startAddr}
                                 onChange={(e) => setStartAddr(e.target.value)}
+                                placeholder={selectionMode === 'start' ? "Click on map to set..." : ""}
                             />
-                            <MapPin size={14} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#f97316' }} fill="#f9731633" />
+                            <button
+                                onClick={() => setSelectionMode(selectionMode === 'start' ? null : 'start')}
+                                style={{
+                                    position: 'absolute', right: '0.4rem', top: '50%', transform: 'translateY(-50%)',
+                                    background: selectionMode === 'start' ? '#f97316' : '#fff7ed',
+                                    border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', display: 'flex',
+                                    transition: 'all 0.2s',
+                                    boxShadow: selectionMode === 'start' ? '0 4px 10px rgba(249, 115, 22, 0.3)' : 'none'
+                                }}
+                                title="Pick from map"
+                            >
+                                <Target size={14} color={selectionMode === 'start' ? 'white' : '#f97316'} />
+                            </button>
                         </div>
                     </div>
 
@@ -183,11 +283,27 @@ export function RoutesAndStops({ startCoords, destCoords, stops = [], onUpdateSt
                         <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1e293b', display: 'block', marginBottom: '0.4rem' }}>Destination <span style={{ color: '#f97316' }}>*</span></label>
                         <div style={{ position: 'relative' }}>
                             <input
-                                style={inputStyleSmall}
+                                style={{
+                                    ...inputStyleSmall,
+                                    border: selectionMode === 'dest' ? '1.5px solid #1e293b' : '1.5px solid #f1f5f9',
+                                    boxShadow: selectionMode === 'dest' ? '0 0 0 4px rgba(30, 41, 59, 0.1)' : 'none'
+                                }}
                                 value={destAddr}
                                 onChange={(e) => setDestAddr(e.target.value)}
+                                placeholder={selectionMode === 'dest' ? "Click on map to set destination..." : ""}
                             />
-                            <ChevronDown size={14} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                            <button
+                                onClick={() => setSelectionMode(selectionMode === 'dest' ? null : 'dest')}
+                                style={{
+                                    position: 'absolute', right: '0.4rem', top: '50%', transform: 'translateY(-50%)',
+                                    background: selectionMode === 'dest' ? '#1e293b' : '#f8fafc',
+                                    border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', display: 'flex',
+                                    transition: 'all 0.2s'
+                                }}
+                                title="Pick from map"
+                            >
+                                <Target size={14} color={selectionMode === 'dest' ? 'white' : '#64748b'} />
+                            </button>
                         </div>
                     </div>
 
@@ -240,10 +356,27 @@ export function RoutesAndStops({ startCoords, destCoords, stops = [], onUpdateSt
                             <div style={{ position: 'relative' }}>
                                 <input
                                     id="new-stop-name"
-                                    style={{ ...inputStyleSmall, background: 'white' }}
-                                    placeholder="Type to search address..."
+                                    style={{
+                                        ...inputStyleSmall,
+                                        background: 'white',
+                                        border: selectionMode === 'stop' ? '1.5px solid #10b981' : '1.5px solid #f1f5f9',
+                                        boxShadow: selectionMode === 'stop' ? '0 0 0 4px rgba(16, 185, 129, 0.1)' : 'none'
+                                    }}
+                                    placeholder={selectionMode === 'stop' ? "Click map to set stop..." : "Type to search address..."}
                                 />
-                                <Target size={14} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                                <button
+                                    onClick={() => setSelectionMode(selectionMode === 'stop' ? null : 'stop')}
+                                    style={{
+                                        position: 'absolute', right: '0.4rem', top: '50%', transform: 'translateY(-50%)',
+                                        background: selectionMode === 'stop' ? '#10b981' : '#f8fafc',
+                                        border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer', display: 'flex',
+                                        transition: 'all 0.2s',
+                                        zIndex: 5
+                                    }}
+                                    title="Pick from map"
+                                >
+                                    <Target size={14} color={selectionMode === 'stop' ? 'white' : '#94a3b8'} />
+                                </button>
                             </div>
                         </div>
 
@@ -269,8 +402,10 @@ export function RoutesAndStops({ startCoords, destCoords, stops = [], onUpdateSt
                                         id: Date.now(),
                                         name,
                                         type,
-                                        coords: { lat: 9.91 + Math.random() * 0.05, lng: 78.11 + Math.random() * 0.05 }
+                                        coords: window._tempStopCoords || { lat: 9.91 + Math.random() * 0.05, lng: 78.11 + Math.random() * 0.05 }
                                     }]);
+                                    window._tempStopCoords = null;
+
                                     document.getElementById('new-stop-name').value = '';
                                     document.getElementById('new-stop-category').value = 'Select category';
                                 }

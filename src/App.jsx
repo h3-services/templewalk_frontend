@@ -105,6 +105,14 @@ function AuthenticatedApp() {
             setLastSaved(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         } else {
             try {
+                // Safely format the date string. input type="time" normally provides HH:mm
+                const dateTimeStr = `${formData.eventDate}T${formData.startTime}:00`;
+                const eventDateObj = new Date(dateTimeStr);
+
+                if (isNaN(eventDateObj.getTime())) {
+                    throw new Error("Invalid date or time selected.");
+                }
+
                 // Construct payload for API
                 const payload = {
                     name: formData.eventName,
@@ -112,16 +120,16 @@ function AuthenticatedApp() {
                     event_type: "walk",
                     is_paid: false,
                     fee: 0,
-                    event_date: new Date(`${formData.eventDate}T${formData.startTime}`).toISOString(),
-                    start_lat: formData.startCoords.lat,
-                    start_lng: formData.startCoords.lng,
-                    end_lat: formData.destCoords.lat,
-                    end_lng: formData.destCoords.lng,
+                    event_date: eventDateObj.toISOString(),
+                    start_lat: Number(formData.startCoords.lat),
+                    start_lng: Number(formData.startCoords.lng),
+                    end_lat: Number(formData.destCoords.lat),
+                    end_lng: Number(formData.destCoords.lng),
                     route_polyline: formData.stops.map(stop => ({
                         name: stop.name,
                         type: stop.type,
-                        lat: stop.coords.lat,
-                        lng: stop.coords.lng
+                        lat: Number(stop.coords.lat),
+                        lng: Number(stop.coords.lng)
                     })),
                     emergency_contacts: [
                         {

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from '../simple-router';
+
 import {
     MapPin, Users, AlertTriangle, UserCheck, Bell,
     Calendar, Clock, Plus, Minus, Maximize2, Search,
@@ -8,7 +10,9 @@ import {
 import velIcon from '../assets/Vel.svg';
 
 export function LiveDashboard() {
+    const navigate = useNavigate();
     const [timeRemaining, setTimeRemaining] = useState({ days: 5, hours: 2, minutes: 13, seconds: 36 });
+
     const [activeFilter, setActiveFilter] = useState('all');
 
     // Countdown timer
@@ -42,71 +46,93 @@ export function LiveDashboard() {
         document.title = 'Live Dashboard | Temple Walk Admin';
     }, []);
 
+    const [counts, setCounts] = useState({ walking: 0, sos: 0, volunteers: 0 });
+    const [sosList, setSosList] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    // Fetch real stats data
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                const [usersRes, volunteersRes, sosRes] = await Promise.all([
+                    fetch('/api/v1/users/?skip=0&limit=2000'),
+                    fetch('/api/v1/volunteers/?skip=0&limit=2000'),
+                    fetch('/api/v1/sos/?lat=9.9195&lng=78.1193')
+                ]);
+
+                let walkingCount = 0;
+                let activeVolunteers = 0;
+                let pendingSos = 0;
+                let formattedSos = [];
+
+                if (usersRes.ok) {
+                    const users = await usersRes.json();
+                    walkingCount = users.filter(u => u.role === 'devotee').length;
+                }
+
+                if (volunteersRes.ok) {
+                    const volunteers = await volunteersRes.json();
+                    activeVolunteers = volunteers.length;
+                }
+
+                if (sosRes.ok) {
+                    const sos = await sosRes.json();
+                    pendingSos = sos.filter(s => !s.isCompleted).length;
+                    formattedSos = sos.map(req => ({
+                        id: req.id,
+                        name: req.name || "Unknown User",
+                        helpType: req.extraHelp ? "Extra Help Needed" : "SOS Alert",
+                        location: req.distance ? `${req.distance} away` : "Nearby",
+                        time: req.time || "Just now",
+                        attendedBy: req.isAccepted ? "Accepted" : null,
+                        color: req.extraHelp ? "#3b82f6" : "#ef4444"
+                    })).slice(0, 5);
+                }
+
+                setCounts({
+                    walking: walkingCount,
+                    sos: pendingSos,
+                    volunteers: activeVolunteers
+                });
+                setSosList(formattedSos);
+            } catch (error) {
+                console.error("Error fetching dashboard stats:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDashboardData();
+        const interval = setInterval(fetchDashboardData, 15000); // Refresh every 15s
+        return () => clearInterval(interval);
+    }, []);
+
     const stats = [
         {
-            label: "Walking Now",
-            value: "981",
+            label: "Total Devotees",
+            value: counts.walking,
             icon: <PersonStanding size={24} />,
             color: "#10b981",
             bg: "#f0fdf4"
         },
         {
             label: "SOS Alerts",
-            value: "3",
+            value: counts.sos,
             icon: <Bell size={24} />,
             color: "#ef4444",
             bg: "#fef2f2"
         },
         {
             label: "Volunteers On Duty",
-            value: "62",
+            value: counts.volunteers,
             icon: <UserCheck size={24} />,
             color: "#3b82f6",
             bg: "#eff6ff"
         }
     ];
 
-    const sosRequests = [
-        {
-            id: 1,
-            name: "Meera V. (Child)",
-            helpType: "Lost Person",
-            location: "460m away • Main Entrance",
-            time: "5 mins ago",
-            attendedBy: "Volunteer Vikram",
-            color: "#f59e0b"
-        },
-        {
-            id: 2,
-            name: "Suresh G.",
-            helpType: "Water Shortage",
-            location: "1.2km away • Rest Area B",
-            time: "12 mins ago",
-            attendedBy: null,
-            color: "#3b82f6"
-        },
-        {
-            id: 3,
-            name: "Priya K.",
-            helpType: "Medical Emergency",
-            location: "800m away • Rest Stop 2",
-            time: "18 mins ago",
-            attendedBy: "Volunteer Ravi",
-            color: "#ef4444"
-        },
-
-        {
-            id: 4,
-            name: "Priya K.",
-            helpType: "Medical Emergency",
-            location: "800m away • Rest Stop 2",
-            time: "18 mins ago",
-            attendedBy: "Volunteer Ravi",
-            color: "#ef4444"
-        }
-    ];
-
     const formatTime = (num) => String(num).padStart(2, '0');
+
 
     return (
         <div className="live-dashboard" style={{
@@ -155,7 +181,7 @@ export function LiveDashboard() {
 
                 <button
                     className="primary-action-btn"
-                    onClick={() => console.log('Manage Walk clicked')}
+                    onClick={() => navigate('/events')}
                 >
                     <Edit2 size={18} /> <span className="btn-text">Manage this Walk</span>
                 </button>
@@ -294,7 +320,7 @@ export function LiveDashboard() {
                                 fontWeight: 600,
                                 cursor: 'pointer',
                                 transition: 'all 0.2s'
-                            }}>Users Walking</button>
+                            }}>Total Devotees</button>
                     </div>
 
                     {/* Map Area */}
@@ -555,7 +581,7 @@ export function LiveDashboard() {
                             scrollbarWidth: 'thin',
                             scrollbarColor: '#e5e7eb transparent'
                         }}>
-                            {sosRequests.map(request => (
+                            {sosList.length > 0 ? sosList.map(request => (
                                 <div key={request.id} style={{
                                     padding: '0.6rem 0.75rem',
                                     background: '#f8fafc',
@@ -606,7 +632,7 @@ export function LiveDashboard() {
                                             alignItems: 'center',
                                             gap: '0.2rem'
                                         }}>
-                                            <MapPin size={10} /> {request.location.split('•')[0].trim()}
+                                            <MapPin size={10} /> {request.location}
                                         </p>
                                     </div>
 
@@ -638,22 +664,28 @@ export function LiveDashboard() {
                                         </div>
                                     )}
                                 </div>
-                            ))}
+                            )) : (
+                                <div style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8', fontSize: '0.8rem' }}>
+                                    No active SOS requests
+                                </div>
+                            )}
                         </div>
 
-                        <button style={{
-                            width: '100%',
-                            background: '#f97316',
-                            color: 'white',
-                            padding: '0.75rem',
-                            borderRadius: '10px',
-                            border: 'none',
-                            fontWeight: 700,
-                            fontSize: '0.85rem',
-                            cursor: 'pointer',
-                            boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)',
-                            transition: 'all 0.2s'
-                        }}>
+                        <button
+                            onClick={() => navigate('/sos-requests')}
+                            style={{
+                                width: '100%',
+                                background: '#f97316',
+                                color: 'white',
+                                padding: '0.75rem',
+                                borderRadius: '10px',
+                                border: 'none',
+                                fontWeight: 700,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)',
+                                transition: 'all 0.2s'
+                            }}>
                             See All Requests
                         </button>
                     </div>

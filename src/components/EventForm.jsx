@@ -48,7 +48,6 @@ export function EventForm({ formData, setFormData, errors = {} }) {
                         <p style={{ fontSize: '0.8rem', color: '#94a3b8', margin: '0.25rem 0 0 0', fontWeight: 500 }}>Setup core details for your walk event</p>
                     </div>
                 </div>
-
             </div>
 
             {/* Form Grid - 2 Column Layout */}
@@ -70,7 +69,7 @@ export function EventForm({ formData, setFormData, errors = {} }) {
                             value={formData.eventName}
                             onChange={handleChange}
                             style={getErrorStyle('eventName')}
-                            placeholder="e.g. Annual Arulmigu Kapaleeshwarar Padhayatra"
+                            placeholder="e.g. Annual Kashi Vishwanath Yatra"
                         />
                         {errors.eventName ? <p style={errorTextStyle}>{errors.eventName}</p> : <p style={hintStyle}>This name will be visible to all devotees on the mobile app.</p>}
                     </div>
@@ -149,7 +148,7 @@ export function EventForm({ formData, setFormData, errors = {} }) {
                             resize: 'none',
                             minHeight: '180px'
                         }}
-                        placeholder="Enter a brief summary of the spiritual significance, pilgrimage rules, and what devotees can expect during this sacred walk..."
+                        placeholder="Tell devotees about the spiritual significance of this sacred pilgrimage..."
                     ></textarea>
                     {errors.description ? <p style={errorTextStyle}>{errors.description}</p> : <p style={hintStyle}>This description will appear on the event detail page in the mobile app.</p>}
                 </div>
@@ -204,12 +203,14 @@ const iconStyle = {
     color: '#94a3b8',
     pointerEvents: 'none'
 };
+
 const errorTextStyle = {
     fontSize: '0.75rem',
     color: '#ef4444',
     marginTop: '0.5rem',
     fontWeight: 600
 };
+
 const hintStyle = {
     fontSize: '0.75rem',
     color: '#94a3b8',
