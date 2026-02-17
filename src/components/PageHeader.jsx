@@ -18,7 +18,7 @@ export function PageHeader({
                 return {
                     name: 'EVENTS',
                     title: view === 'create' ? 'CREATE EVENT' : null,
-                    action: view === 'create' ? 'Draft' : null
+                    action: null
                 };
             case '/devotees':
                 return { name: 'DEVOTEE DIRECTORY', title: null, action: 'devotee' };
@@ -33,7 +33,7 @@ export function PageHeader({
             case '/settings':
                 return { name: 'SETTINGS', title: 'CONFIG', action: null };
             case '/guide-creation':
-                return { name: 'VRATHAM GUIDE', title: 'CREATION', action: null };
+                return { name: 'GUIDE', title: null, action: null };
             default:
                 return { name: 'ADMIN', title: 'CONSOLE', action: null };
         }
@@ -90,24 +90,7 @@ export function PageHeader({
             </div>
 
             <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', height: '40px' }}>
-                {/* Specific actions for Event Creation */}
-                {current.action === 'Draft' && (
-                    <div className="header-draft-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        <button onClick={onDiscard} style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>Discard</button>
-                        <button onClick={onSaveDraft} style={{
-                            background: '#F97316',
-                            color: 'white',
-                            padding: '0.6rem 1.25rem',
-                            borderRadius: '10px',
-                            border: 'none',
-                            fontWeight: 800,
-                            fontSize: '0.85rem',
-                            cursor: 'pointer',
-                            boxShadow: '0 4px 12px rgba(249, 115, 22, 0.2)',
-                            whiteSpace: 'nowrap'
-                        }}>Save Draft</button>
-                    </div>
-                )}
+                {/* Actions area currently empty for event creation */}
             </div>
 
             <style dangerouslySetInnerHTML={{

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     AlertTriangle, MapPin, Clock, UserCheck,
     Search, Filter, ChevronDown, CheckCircle2,
-    AlertCircle, Clock3, MoreVertical, Bell
+    AlertCircle, Clock3, MoreVertical, Bell, Phone
 } from 'lucide-react';
 import { SearchBar, Pagination } from './index';
 
@@ -16,88 +16,65 @@ export function SOSRequests() {
         document.title = 'SOS Requests | Temple Walk Admin';
     }, []);
 
-    const allRequests = [
-        {
-            id: 1,
-            name: "Meera V. (Child)",
-            helpType: "Lost Person",
-            location: "Main Entrance • Zone A",
-            distance: "460m away",
-            time: "5 mins ago",
-            status: "Accepted",
-            acceptedBy: "Volunteer Vikram",
-            color: "#f59e0b",
-            priority: "High"
-        },
-        {
-            id: 2,
-            name: "Suresh G.",
-            helpType: "Water Shortage",
-            location: "Rest Area B • Zone C",
-            distance: "1.2km away",
-            time: "12 mins ago",
-            status: "Pending",
-            acceptedBy: null,
-            color: "#3b82f6",
-            priority: "Medium"
-        },
-        {
-            id: 3,
-            name: "Priya K.",
-            helpType: "Medical Emergency",
-            location: "Rest Stop 2 • Zone B",
-            distance: "800m away",
-            time: "18 mins ago",
-            status: "Accepted",
-            acceptedBy: "Volunteer Ravi",
-            color: "#ef4444",
-            priority: "Critical"
-        },
-        {
-            id: 4,
-            name: "Rajesh M.",
-            helpType: "General Help",
-            location: "Temple Stairs • Zone A",
-            distance: "200m away",
-            time: "25 mins ago",
-            status: "Pending",
-            acceptedBy: null,
-            color: "#64748b",
-            priority: "Low"
-        },
-        {
-            id: 5,
-            name: "Anitha S.",
-            helpType: "Medical Emergency",
-            location: "Parking Lot • Zone D",
-            distance: "1.5km away",
-            time: "32 mins ago",
-            status: "Accepted",
-            acceptedBy: "Volunteer Sarah",
-            color: "#ef4444",
-            priority: "Critical"
-        },
-        {
-            id: 6,
-            name: "Karthik R.",
-            helpType: "Lost Item",
-            location: "Food Stall 4 • Zone B",
-            distance: "600m away",
-            time: "45 mins ago",
-            status: "Closed",
-            acceptedBy: "Volunteer Arjun",
-            color: "#10b981",
-            priority: "Low"
-        }
-    ];
+    const [requests, setRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchRequests = async () => {
+            try {
+                // Default coordinates (Dallas area or similar)
+                const lat = 9.9195;
+                const lng = 78.1193;
+
+                const response = await fetch(`/api/v1/sos/?lat=${lat}&lng=${lng}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    // Maps API data to UI structure
+                    const formattedData = data.map(req => ({
+                        id: req.id,
+                        name: req.name || "Unknown User",
+                        phoneNumber: req.phoneNumber || "N/A",
+                        helpType: req.extraHelp ? "Extra Help Needed" : "SOS Alert",
+                        location: "Nearby",
+                        distance: req.distance || "0m",
+                        time: req.time || "Just now",
+                        status: req.isCompleted ? "Closed" : (req.isAccepted ? "Accepted" : "Pending"),
+                        isAccepted: req.isAccepted,
+                        isCompleted: req.isCompleted,
+                        extraHelp: req.extraHelp,
+                        priority: "High",
+                        color: "#ef4444"
+                    }));
+                    setRequests(formattedData);
+                } else if (response.status === 422) {
+                    const errorData = await response.json();
+                    console.error("SOS API Validation Error:", errorData.detail);
+                }
+            } catch (error) {
+                console.error("Failed to fetch SOS requests", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchRequests();
+    }, []);
 
     // Filter & Search Logic
-    const filteredRequests = allRequests.filter(req => {
-        const matchesSearch = req.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            req.helpType.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesFilter = activeFilter === 'All' || req.status === activeFilter;
-        return matchesSearch && matchesFilter;
-    });
+    const filteredRequests = React.useMemo(() => {
+        return requests.filter(req => {
+            const matchesSearch = req.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                req.helpType.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                req.phoneNumber.toLowerCase().includes(searchTerm.toLowerCase());
+
+            const matchesFilter = activeFilter === 'All' ||
+                (activeFilter === 'Pending' && !req.isAccepted && !req.isCompleted) ||
+                (activeFilter === 'Accepted' && req.isAccepted && !req.isCompleted) ||
+                (activeFilter === 'Closed' && req.isCompleted);
+
+            return matchesSearch && matchesFilter;
+        });
+    }, [requests, searchTerm, activeFilter]);
 
     const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
     const currentItems = filteredRequests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -166,7 +143,7 @@ export function SOSRequests() {
                 }}>
                     <Bell size={18} color="#ef4444" />
                     <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#991b1b' }}>
-                        {allRequests.filter(r => r.status === 'Pending').length} Pending Alerts
+                        {requests.filter(r => r.status === 'Pending').length} Pending Alerts
                     </span>
                 </div>
             </div>
@@ -184,32 +161,41 @@ export function SOSRequests() {
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        {['All', 'Pending', 'Accepted', 'Closed'].map(filter => (
-                            <button
-                                key={filter}
-                                onClick={() => { setActiveFilter(filter); setCurrentPage(1); }}
-                                style={{
-                                    padding: '0.5rem 1rem',
-                                    borderRadius: '10px',
-                                    border: 'none',
-                                    background: activeFilter === filter ? '#f8fafc' : 'transparent',
-                                    color: activeFilter === filter ? '#0f172a' : '#64748b',
-                                    fontSize: '0.85rem',
-                                    fontWeight: activeFilter === filter ? 800 : 600,
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s'
-                                }}
-                            >
-                                {filter}
-                            </button>
-                        ))}
+                        {['All', 'Pending', 'Accepted', 'Closed'].map(filter => {
+                            const isActive = activeFilter === filter;
+                            let activeBg = '#0f172a'; // Default Dark
+                            if (filter === 'Pending') activeBg = '#f59e0b';
+                            if (filter === 'Accepted') activeBg = '#3b82f6';
+                            if (filter === 'Closed') activeBg = '#10b981';
+
+                            return (
+                                <button
+                                    key={filter}
+                                    onClick={() => { setActiveFilter(filter); setCurrentPage(1); }}
+                                    style={{
+                                        padding: '0.5rem 1.25rem',
+                                        borderRadius: '50px',
+                                        border: isActive ? 'none' : '1px solid transparent',
+                                        background: isActive ? activeBg : 'transparent',
+                                        color: isActive ? 'white' : '#64748b',
+                                        fontSize: '0.85rem',
+                                        fontWeight: isActive ? 700 : 600,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        boxShadow: isActive ? '0 4px 12px rgba(0,0,0,0.15)' : 'none'
+                                    }}
+                                >
+                                    {filter}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
                 <div style={{ width: '300px' }}>
                     <SearchBar
                         onSearch={setSearchTerm}
-                        placeholder="Search by name or help type..."
+                        placeholder="Search by name, phone or help type..."
                     />
                 </div>
             </div>
@@ -246,7 +232,11 @@ export function SOSRequests() {
 
                 {/* List Content */}
                 <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto' }}>
-                    {currentItems.length > 0 ? currentItems.map((request, idx) => (
+                    {loading ? (
+                        <div style={{ padding: '4rem', textAlign: 'center', color: '#64748b' }}>
+                            <p>Loading requests...</p>
+                        </div>
+                    ) : currentItems.length > 0 ? currentItems.map((request, idx) => (
                         <div key={request.id} style={{
                             display: 'grid',
                             gridTemplateColumns: '2fr 1.5fr 1.5fr 1fr',
@@ -275,6 +265,9 @@ export function SOSRequests() {
                                 </div>
                                 <div>
                                     <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b', marginBottom: '0.2rem', margin: 0 }}>{request.name}</h4>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>
+                                        <Phone size={12} color="#f97316" /> {request.phoneNumber}
+                                    </div>
                                 </div>
                             </div>
 

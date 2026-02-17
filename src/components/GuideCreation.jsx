@@ -1,73 +1,88 @@
 import React, { useState } from 'react';
 import {
-    Upload,
     Plus,
     Trash2,
     GripVertical,
-    Image as ImageIcon,
-    Music,
-    Type,
-    Link as LinkIcon,
     Save,
-    Eye,
-    EyeOff,
     Check,
     AlertCircle,
     MoveUp,
-    MoveDown
+    MoveDown,
+    X,
+    ChevronDown,
+    ChevronUp,
+    Sun,
+    Moon,
+    Star,
+    Heart,
+    Shield,
+    Flame,
+    Droplet,
+    Zap,
+    Book,
+    Music,
+    Smile,
+    Coffee,
+    Feather,
+    Bell,
+    Anchor
 } from 'lucide-react';
+import { SearchBar } from './index';
+
+const availableIcons = {
+    Sun, Moon, Star, Heart, Shield, Flame, Droplet, Zap, Book, Music, Smile, Coffee, Feather, Bell, Anchor
+};
 
 export function GuideCreation() {
-
-
     // Categories State
-    const [categories, setCategories] = useState([
-        {
-            id: 1,
-            title: 'Vratham Rules',
-            description: 'Essential discipline guidelines and behavioral codes.',
-            content: '',
-            icon: null,
-            audio: null,
-            active: true
-        },
-        {
-            id: 2,
-            title: 'Fasting Types',
-            description: 'Levels of dietary observances for spiritual purification.',
-            content: '',
-            icon: null,
-            audio: null,
-            active: true
-        },
-        {
-            id: 3,
-            title: 'Daily Pooja',
-            description: 'Step-by-step ritual instructions for your morning/evening.',
-            content: '',
-            icon: null,
-            audio: null,
-            active: true
-        },
-        {
-            id: 4,
-            title: 'Chant List',
-            description: 'Library of Shlokas & Mantras with audio guidance.',
-            content: '',
-            icon: null,
-            audio: null,
-            active: true
-        }
-    ]);
+    const [categories, setCategories] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [selectedIcon, setSelectedIcon] = useState('Star');
 
-    // Pro-Tips State
-    const [proTip, setProTip] = useState({
-        title: 'Hydration is Key',
-        description: 'Drink mostly water and electrolytes. Avoid sugary sodas.',
-        visible: true
-    });
+    // Filtered categories for search
+    const filteredCategories = categories.filter(cat =>
+        cat.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        cat.description?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
+    // Fetch Categories on Mount
+    React.useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const response = await fetch('/api/v1/guide-categories/');
+                if (response.ok) {
+                    const data = await response.json();
+                    setCategories(data.map(cat => ({
+                        id: cat.category_id,
+                        title: cat.title,
+                        description: cat.description,
+                        icon: cat.icon_url || 'Star',
+                        items: cat.items || [],
+                        active: true,
+                        expanded: false
+                    })));
+                }
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+            }
+        };
+        fetchCategories();
+    }, []);
 
+    // Add Category Side Panel State
+    const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+    const [newCategoryTitle, setNewCategoryTitle] = useState('');
+    const [newCategoryDescription, setNewCategoryDescription] = useState('');
+
+    // Side Panel State (Items)
+    const [activeCategoryForAdd, setActiveCategoryForAdd] = useState(null);
+    const [newItemTitle, setNewItemTitle] = useState('');
+    const [newItemDescription, setNewItemDescription] = useState('');
+
+    // Icon Picker State
+    const [iconPickerOpen, setIconPickerOpen] = useState(null); // category ID
+    const [focusedField, setFocusedField] = useState(null);
 
     // Drag-and-Drop / Reorder Handlers
     const moveCategory = (index, direction) => {
@@ -81,17 +96,62 @@ export function GuideCreation() {
     };
 
     // Category Handlers
-    const addCategory = () => {
-        const newId = Math.max(...categories.map(c => c.id), 0) + 1;
-        setCategories([...categories, {
-            id: newId,
-            title: 'New Category',
-            description: '',
-            content: '',
-            icon: null,
-            audio: null,
-            active: true
-        }]);
+    const openAddCategoryPanel = () => {
+        setIsAddCategoryOpen(true);
+        setNewCategoryTitle('');
+        setNewCategoryDescription('');
+        setSelectedIcon('Star');
+    };
+
+    const closeAddCategoryPanel = () => {
+        setIsAddCategoryOpen(false);
+    };
+
+    const handleCreateCategory = async () => {
+        if (!newCategoryTitle.trim()) {
+            showToast('Category title is required', 'error');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await fetch('/api/v1/guide-categories/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: newCategoryTitle,
+                    description: newCategoryDescription,
+                    icon_url: selectedIcon
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create category');
+            }
+
+            const data = await response.json();
+
+            // Add the new category to the local state
+            setCategories([...categories, {
+                id: data.category_id,
+                title: data.title,
+                description: data.description,
+                icon: data.icon_url || 'Star',
+                items: [],
+                active: true,
+                expanded: true
+            }]);
+
+            showToast('Category created successfully!');
+            closeAddCategoryPanel();
+        } catch (error) {
+            console.error('Error creating category:', error);
+            showToast('Failed to create category. Please try again.', 'error');
+        } finally {
+            setLoading(false);
+        }
     };
 
     const updateCategory = (id, field, value) => {
@@ -104,7 +164,65 @@ export function GuideCreation() {
         }
     };
 
-    // Toast Notification (Simple Implementation)
+    // Item Handlers
+    const openAddItemPanel = (categoryId) => {
+        setActiveCategoryForAdd(categoryId);
+        setNewItemTitle('');
+        setNewItemDescription('');
+    };
+
+    const closeAddItemPanel = () => {
+        setActiveCategoryForAdd(null);
+    };
+
+    const handleAddItem = () => {
+        if (!newItemTitle.trim()) {
+            showToast('Item title is required', 'error');
+            return;
+        }
+
+        const category = categories.find(c => c.id === activeCategoryForAdd);
+        if (category) {
+            const newItem = {
+                id: Date.now(),
+                title: newItemTitle,
+                description: newItemDescription,
+                expanded: false
+            };
+            const updatedCategories = categories.map(c =>
+                c.id === activeCategoryForAdd
+                    ? { ...c, items: [...c.items, newItem] }
+                    : c
+            );
+            setCategories(updatedCategories);
+            showToast('Item added successfully');
+            closeAddItemPanel();
+        }
+    };
+
+    const toggleItemExpansion = (categoryId, itemId) => {
+        setCategories(categories.map(c => {
+            if (c.id === categoryId) {
+                return {
+                    ...c,
+                    items: c.items.map(i => i.id === itemId ? { ...i, expanded: !i.expanded } : i)
+                };
+            }
+            return c;
+        }));
+    };
+
+    const deleteItem = (categoryId, itemId) => {
+        if (window.confirm('Are you sure you want to delete this item?')) {
+            setCategories(categories.map(c =>
+                c.id === categoryId
+                    ? { ...c, items: c.items.filter(i => i.id !== itemId) }
+                    : c
+            ));
+        }
+    };
+
+    // Toast Notification
     const [toast, setToast] = useState(null);
     const showToast = (message, type = 'success') => {
         setToast({ message, type });
@@ -112,20 +230,8 @@ export function GuideCreation() {
     };
 
     const handleSave = () => {
-        // Logic to save to backend would go here
-        console.log({ categories, proTip });
+        console.log({ categories });
         showToast('Changes saved successfully!');
-    };
-
-    // File Upload Handler (Generic)
-    const handleFileUpload = (e, callback) => {
-        const file = e.target.files[0];
-        if (file) {
-            // In a real app, upload to server/storage and get URL. 
-            // Here we use local object URL for preview.
-            const url = URL.createObjectURL(file);
-            callback(url);
-        }
     };
 
     return (
@@ -133,7 +239,8 @@ export function GuideCreation() {
             flex: 1,
             overflowY: 'auto',
             paddingBottom: '2rem',
-            paddingRight: '0.5rem'
+            paddingRight: '0.5rem',
+            position: 'relative'
         }}>
             {/* Toast Notification */}
             {toast && (
@@ -159,9 +266,46 @@ export function GuideCreation() {
             )}
 
             {/* Header Actions */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '2rem' }}>
+            {/* Page Title Header */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '2rem', // Increased margin bottom from 0.5rem to 2rem to match original spacing
+                gap: '1rem'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{
+                        width: '48px',
+                        height: '48px',
+                        background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                        borderRadius: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '0 4px 12px rgba(249, 115, 22, 0.25)',
+                        flexShrink: 0
+                    }}>
+                        <Book size={24} color="white" />
+                    </div>
+                    <div>
+                        <h1 style={{
+                            fontSize: '1.5rem',
+                            fontWeight: 800,
+                            color: '#0f172a',
+                            marginBottom: '0.25rem',
+                            margin: 0
+                        }}>Guide</h1>
+                        <p style={{
+                            fontSize: '0.85rem',
+                            color: '#64748b',
+                            fontWeight: 500,
+                            margin: 0
+                        }}>Manage guide categories and content</p>
+                    </div>
+                </div>
                 <button
-                    onClick={handleSave}
+                    onClick={openAddCategoryPanel}
                     style={{
                         padding: '0.75rem 1.5rem',
                         background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
@@ -177,190 +321,382 @@ export function GuideCreation() {
                         boxShadow: '0 4px 12px rgba(249, 115, 22, 0.2)'
                     }}
                 >
-                    <Save size={18} /> Save All Changes
+                    <Plus size={18} /> Create Category
                 </button>
             </div>
 
+            {/* Search Bar Card */}
+            <div style={{
+                background: 'white',
+                borderRadius: '24px',
+                padding: '1.5rem',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+                border: '1px solid rgba(0,0,0,0.03)',
+                marginBottom: '1.5rem'
+            }}>
+                <SearchBar
+                    placeholder="Search guide categories..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    style={{ width: '100%' }}
+                />
+            </div>
 
 
-            {/* 2. Preparation Categories Management */}
-            <SectionCard
-                title="Preparation Categories"
-                icon={<GripVertical size={20} color="#f97316" />}
-                action={
-                    <button style={outlineBtnStyle} onClick={addCategory}>
-                        <Plus size={16} /> Add Category
-                    </button>
-                }
-            >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    {categories.map((cat, index) => (
-                        <div key={cat.id} style={{
-                            border: '1px solid #e2e8f0',
-                            borderRadius: '16px',
-                            padding: '1.5rem',
-                            background: '#fff',
-                            position: 'relative',
-                            transition: 'all 0.2s'
+            {/* Categories List */}
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem',
+                background: 'white',
+                borderRadius: '24px',
+                padding: '1.5rem',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+                border: '1px solid rgba(0,0,0,0.03)'
+            }}>
+                {filteredCategories.length === 0 ? (
+                    <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '4rem 2rem',
+                        gap: '1rem'
+                    }}>
+                        <div style={{
+                            width: '80px',
+                            height: '80px',
+                            borderRadius: '20px',
+                            background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: '0.5rem'
                         }}>
-                            <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                marginBottom: '1.5rem',
-                                borderBottom: '1px solid #f1f5f9',
-                                paddingBottom: '1rem'
+                            <Book size={36} color="#f97316" />
+                        </div>
+                        <h3 style={{
+                            fontSize: '1.1rem',
+                            fontWeight: 700,
+                            color: '#1e293b',
+                            margin: 0
+                        }}>{searchTerm ? 'No matching categories' : 'No guide categories found'}</h3>
+                        <p style={{
+                            fontSize: '0.9rem',
+                            color: '#64748b',
+                            textAlign: 'center',
+                            margin: 0,
+                            maxWidth: '400px'
+                        }}>
+                            {searchTerm
+                                ? `No results found for "${searchTerm}". Try a different term.`
+                                : 'Get started by creating your first guide category to organize your content.'}
+                        </p>
+                    </div>
+                ) : (
+                    filteredCategories.map((cat, index) => {
+                        const IconComponent = availableIcons[cat.icon] || Book;
+                        return (
+                            <div key={cat.id} style={{
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '16px',
+                                padding: '1.5rem',
+                                background: '#fff',
+                                position: 'relative',
+                                transition: 'all 0.2s',
+                                maxWidth: '800px',
+                                margin: '0'
                             }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                        <button
-                                            onClick={() => moveCategory(index, 'up')}
-                                            disabled={index === 0}
-                                            style={moveBtnStyle}
-                                        >
-                                            <MoveUp size={14} />
+                                <div style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    marginBottom: cat.expanded ? '1.5rem' : '0',
+                                    borderBottom: cat.expanded ? '1px solid #f1f5f9' : 'none',
+                                    paddingBottom: cat.expanded ? '1rem' : '0'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, cursor: 'pointer' }} onClick={() => updateCategory(cat.id, 'expanded', !cat.expanded)}>
+
+                                        <span style={{ fontWeight: 700, color: '#64748b' }}>#{index + 1}</span>
+                                        <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{cat.title || 'New Category'}</h3>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                        <Toggle active={cat.active} onToggle={() => updateCategory(cat.id, 'active', !cat.active)} />
+                                        <button onClick={() => deleteCategory(cat.id)} style={{ ...iconBtnStyle, color: '#ef4444' }}>
+                                            <Trash2 size={18} />
                                         </button>
-                                        <button
-                                            onClick={() => moveCategory(index, 'down')}
-                                            disabled={index === categories.length - 1}
-                                            style={moveBtnStyle}
-                                        >
-                                            <MoveDown size={14} />
+                                        <button onClick={() => updateCategory(cat.id, 'expanded', !cat.expanded)} style={iconBtnStyle}>
+                                            {cat.expanded ? <ChevronUp size={20} color="#64748b" /> : <ChevronDown size={20} color="#64748b" />}
                                         </button>
                                     </div>
-                                    <span style={{ fontWeight: 700, color: '#64748b' }}>#{index + 1}</span>
-                                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{cat.title}</h3>
                                 </div>
-                                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                                    <Toggle
-                                        active={cat.active}
-                                        onToggle={() => updateCategory(cat.id, 'active', !cat.active)}
-                                    />
-                                    <button
-                                        onClick={() => deleteCategory(cat.id)}
-                                        style={{ ...iconBtnStyle, color: '#ef4444' }}
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
-                                </div>
-                            </div>
 
-                            <div style={gridStyle}>
-                                <div>
-                                    <label style={labelStyle}>Category Icon</label>
-                                    <div style={{
-                                        width: '80px',
-                                        height: '80px',
-                                        borderRadius: '12px',
-                                        border: '1px dashed #cbd5e1',
+                                {cat.expanded && (
+                                    <>
+                                        <div style={gridStyle}>
+                                            <div>
+                                                <label style={labelStyle}>Category Icon</label>
+                                                <div style={{ position: 'relative' }}>
+                                                    <div style={{
+                                                        width: '80px', height: '80px', borderRadius: '12px',
+                                                        border: '1px dashed #cbd5e1', display: 'flex', alignItems: 'center',
+                                                        justifyContent: 'center', cursor: 'pointer', background: '#f8fafc'
+                                                    }} onClick={() => setIconPickerOpen(iconPickerOpen === cat.id ? null : cat.id)}>
+                                                        <IconComponent size={32} color="#f97316" />
+                                                    </div>
+                                                    {iconPickerOpen === cat.id && (
+                                                        <div style={{
+                                                            position: 'absolute', top: '90px', left: 0, zIndex: 10,
+                                                            background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px',
+                                                            padding: '1rem', boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                                                            display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.5rem',
+                                                            width: 'max-content'
+                                                        }}>
+                                                            {Object.entries(availableIcons).map(([name, Icon]) => (
+                                                                <div key={name} style={{
+                                                                    padding: '0.5rem', cursor: 'pointer', borderRadius: '8px',
+                                                                    background: cat.icon === name ? '#fff7ed' : 'transparent',
+                                                                    display: 'flex', justifyContent: 'center', alignItems: 'center'
+                                                                }} onClick={() => { updateCategory(cat.id, 'icon', name); setIconPickerOpen(null); }}>
+                                                                    <Icon size={20} color={cat.icon === name ? '#f97316' : '#64748b'} />
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                                <div style={{ position: 'relative' }}>
+                                                    <input
+                                                        type="text"
+                                                        style={{
+                                                            ...floatingInputStyle,
+                                                            background: 'white',
+                                                            border: `1.5px solid ${focusedField?.id === cat.id && focusedField?.field === 'title' ? '#f97316' : '#e2e8f0'}`
+                                                        }}
+                                                        value={cat.title}
+                                                        onChange={(e) => updateCategory(cat.id, 'title', e.target.value)}
+                                                        onFocus={() => setFocusedField({ id: cat.id, field: 'title' })}
+                                                        onBlur={() => setFocusedField(null)}
+                                                    />
+                                                    <label style={{
+                                                        ...floatingLabelStyle,
+                                                        ...(cat.title || (focusedField?.id === cat.id && focusedField?.field === 'title') ? {
+                                                            top: '-0.6rem',
+                                                            left: '0.8rem',
+                                                            fontSize: '0.75rem',
+                                                            color: '#f97316',
+                                                            background: 'white',
+                                                            padding: '0 0.25rem',
+                                                            zIndex: 2
+                                                        } : {})
+                                                    }}>
+                                                        Category Title
+                                                    </label>
+                                                </div>
+                                                <div style={{ position: 'relative' }}>
+                                                    <input
+                                                        type="text"
+                                                        style={{
+                                                            ...floatingInputStyle,
+                                                            background: 'white',
+                                                            border: `1.5px solid ${focusedField?.id === cat.id && focusedField?.field === 'description' ? '#f97316' : '#e2e8f0'}`
+                                                        }}
+                                                        value={cat.description}
+                                                        onChange={(e) => updateCategory(cat.id, 'description', e.target.value)}
+                                                        onFocus={() => setFocusedField({ id: cat.id, field: 'description' })}
+                                                        onBlur={() => setFocusedField(null)}
+                                                    />
+                                                    <label style={{
+                                                        ...floatingLabelStyle,
+                                                        ...(cat.description || (focusedField?.id === cat.id && focusedField?.field === 'description') ? {
+                                                            top: '-0.6rem',
+                                                            left: '0.8rem',
+                                                            fontSize: '0.75rem',
+                                                            color: '#f97316',
+                                                            background: 'white',
+                                                            padding: '0 0.25rem',
+                                                            zIndex: 2
+                                                        } : {})
+                                                    }}>
+                                                        Short Description
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Sub-Items (Accordion) Section */}
+                                        <div style={{ marginTop: '2rem', borderTop: '1px solid #f1f5f9', paddingTop: '1.5rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                                <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#475569' }}>Items</h4>
+                                                <button style={outlineBtnStyle} onClick={() => openAddItemPanel(cat.id)}>
+                                                    <Plus size={14} /> Add Item
+                                                </button>
+                                            </div>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                                {cat.items.map(item => (
+                                                    <div key={item.id} style={{
+                                                        border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden'
+                                                    }}>
+                                                        <div style={{
+                                                            padding: '1rem', background: '#f8fafc', cursor: 'pointer',
+                                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                                        }} onClick={() => toggleItemExpansion(cat.id, item.id)}>
+                                                            <span style={{ fontWeight: 600, color: '#1e293b' }}>{item.title}</span>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                                <button onClick={(e) => { e.stopPropagation(); deleteItem(cat.id, item.id); }}
+                                                                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}>
+                                                                    <Trash2 size={16} />
+                                                                </button>
+                                                                {item.expanded ? <ChevronUp size={18} color="#64748b" /> : <ChevronDown size={18} color="#64748b" />}
+                                                            </div>
+                                                        </div>
+                                                        {item.expanded && (
+                                                            <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', background: 'white' }}>
+                                                                <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem', whiteSpace: 'pre-wrap' }}>{item.description || 'No description provided.'}</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                {cat.items.length === 0 && (
+                                                    <div style={{ textAlign: 'center', padding: '1rem', color: '#94a3b8', fontSize: '0.9rem', fontStyle: 'italic' }}>
+                                                        No items added yet. Click &quot;Add Item&quot; to start.
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        );
+                    })
+                )}
+            </div>
+
+
+            < div style={{
+                position: 'fixed', top: 0, right: activeCategoryForAdd ? 0 : '-400px', width: '350px',
+                height: '100vh', background: 'white', boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
+                zIndex: 9999, padding: '2rem', transition: 'right 0.3s ease-in-out',
+                display: 'flex', flexDirection: 'column',
+                borderTopLeftRadius: '24px', borderBottomLeftRadius: '24px'
+            }
+            }>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>Add New Item</h2>
+                    <button onClick={closeAddItemPanel} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                        <X size={24} />
+                    </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1 }}>
+                    <div>
+                        <label style={labelStyle}>Title</label>
+                        <input type="text" style={inputStyle} value={newItemTitle} onChange={(e) => setNewItemTitle(e.target.value)} placeholder="e.g. Mental Discipline" />
+                    </div>
+                    <div>
+                        <label style={labelStyle}>Description</label>
+                        <textarea style={{ ...inputStyle, minHeight: '150px', resize: 'vertical' }}
+                            value={newItemDescription} onChange={(e) => setNewItemDescription(e.target.value)}
+                            placeholder="Enter detailed description here..." />
+                    </div>
+                </div>
+
+                <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
+                    <button onClick={handleAddItem} style={{
+                        width: '100%', padding: '1rem', background: '#f97316', color: 'white',
+                        border: 'none', borderRadius: '12px', fontWeight: 700, fontSize: '1rem', cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)'
+                    }}>
+                        Add Item
+                    </button>
+                </div>
+            </div >
+
+            {
+                (activeCategoryForAdd || isAddCategoryOpen) && (
+                    <div style={{
+                        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                        background: 'rgba(0,0,0,0.3)', zIndex: 9998
+                    }} onClick={() => { closeAddItemPanel(); closeAddCategoryPanel(); }} />
+                )
+            }
+
+            <div style={{
+                position: 'fixed', top: 0, right: isAddCategoryOpen ? 0 : '-400px', width: '350px',
+                height: '100vh', background: 'white', boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
+                zIndex: 9999, padding: '2rem', transition: 'right 0.3s ease-in-out',
+                display: 'flex', flexDirection: 'column',
+                borderTopLeftRadius: '24px', borderBottomLeftRadius: '24px'
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0 }}>Add New Category</h2>
+                    <button onClick={closeAddCategoryPanel} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}>
+                        <X size={24} />
+                    </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1 }}>
+                    <div>
+                        <label style={labelStyle}>Category Icon</label>
+                        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            {Object.entries(availableIcons).map(([name, Icon]) => (
+                                <div
+                                    key={name}
+                                    onClick={() => setSelectedIcon(name)}
+                                    style={{
+                                        width: '48px',
+                                        height: '48px',
+                                        borderRadius: '10px',
+                                        border: `2px solid ${selectedIcon === name ? '#f97316' : '#e2e8f0'}`,
+                                        background: selectedIcon === name ? '#fff7ed' : '#f8fafc',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         cursor: 'pointer',
-                                        background: cat.icon ? `url(${cat.icon}) center/cover` : '#f8fafc',
-                                        overflow: 'hidden'
+                                        transition: 'all 0.2s'
                                     }}
-                                        onClick={() => document.getElementById(`icon-upload-${cat.id}`).click()}
-                                    >
-                                        {!cat.icon && <Upload size={20} color="#94a3b8" />}
-                                    </div>
-                                    <input
-                                        id={`icon-upload-${cat.id}`}
-                                        type="file"
-                                        accept="image/*"
-                                        style={{ display: 'none' }}
-                                        onChange={(e) => handleFileUpload(e, (url) => updateCategory(cat.id, 'icon', url))}
-                                    />
+                                >
+                                    <Icon size={20} color={selectedIcon === name ? '#f97316' : '#64748b'} />
                                 </div>
-
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                    <div>
-                                        <label style={labelStyle}>Category Title</label>
-                                        <input
-                                            type="text"
-                                            style={inputStyle}
-                                            value={cat.title}
-                                            onChange={(e) => updateCategory(cat.id, 'title', e.target.value)}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label style={labelStyle}>Short Description</label>
-                                        <input
-                                            type="text"
-                                            style={inputStyle}
-                                            value={cat.description}
-                                            onChange={(e) => updateCategory(cat.id, 'description', e.target.value)}
-                                        />
-                                    </div>
-                                </div>
-
-                                <div style={{ gridColumn: '1 / -1' }}>
-                                    <label style={labelStyle}>Detailed Content (Rich Text)</label>
-                                    <textarea
-                                        style={{ ...inputStyle, minHeight: '150px', resize: 'vertical' }}
-                                        value={cat.content}
-                                        onChange={(e) => updateCategory(cat.id, 'content', e.target.value)}
-                                        placeholder="Write detailed instructions here..."
-                                    />
-                                </div>
-
-                                <div style={{ gridColumn: '1 / -1' }}>
-                                    <label style={labelStyle}>Audio Upload (Optional)</label>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                        <button
-                                            style={outlineBtnStyle}
-                                            onClick={() => document.getElementById(`audio-upload-${cat.id}`).click()}
-                                        >
-                                            <Music size={16} /> {cat.audio ? 'Change Audio' : 'Upload Chant/Audio'}
-                                        </button>
-                                        <input
-                                            id={`audio-upload-${cat.id}`}
-                                            type="file"
-                                            accept="audio/*"
-                                            style={{ display: 'none' }}
-                                            onChange={(e) => handleFileUpload(e, (url) => updateCategory(cat.id, 'audio', url))}
-                                        />
-                                        {cat.audio && (
-                                            <audio controls src={cat.audio} style={{ height: '32px' }} />
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                            ))}
                         </div>
-                    ))}
-                </div>
-            </SectionCard>
-
-            {/* 3. Pro-Tip Section Management */}
-            <SectionCard title="Pro-Tip Section" icon={<Type size={20} color="#f97316" />}>
-                <div style={gridStyle}>
-                    <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <label style={labelStyle}>Pro-Tip Visibility</label>
-                        <Toggle
-                            active={proTip.visible}
-                            onToggle={() => setProTip({ ...proTip, visible: !proTip.visible })}
-                        />
                     </div>
                     <div>
-                        <label style={labelStyle}>Pro-Tip Title</label>
-                        <input
-                            type="text"
-                            style={inputStyle}
-                            value={proTip.title}
-                            onChange={(e) => setProTip({ ...proTip, title: e.target.value })}
-                        />
+                        <label style={labelStyle}>Category Title</label>
+                        <input type="text" style={inputStyle} value={newCategoryTitle} onChange={(e) => setNewCategoryTitle(e.target.value)} placeholder="e.g. Morning Rituals" />
                     </div>
                     <div>
                         <label style={labelStyle}>Description</label>
-                        <input
-                            type="text"
-                            style={inputStyle}
-                            value={proTip.description}
-                            onChange={(e) => setProTip({ ...proTip, description: e.target.value })}
-                        />
+                        <textarea style={{ ...inputStyle, minHeight: '150px', resize: 'vertical' }}
+                            value={newCategoryDescription} onChange={(e) => setNewCategoryDescription(e.target.value)}
+                            placeholder="Brief description of this category..." />
                     </div>
                 </div>
-            </SectionCard>
-        </div>
+
+                <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
+                    <button
+                        onClick={handleCreateCategory}
+                        disabled={loading}
+                        style={{
+                            width: '100%',
+                            padding: '1rem',
+                            background: loading ? '#cbd5e1' : '#f97316',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '12px',
+                            fontWeight: 700,
+                            fontSize: '1rem',
+                            cursor: loading ? 'not-allowed' : 'pointer',
+                            boxShadow: loading ? 'none' : '0 4px 12px rgba(249, 115, 22, 0.3)',
+                            opacity: loading ? 0.7 : 1
+                        }}
+                    >
+                        {loading ? 'Creating...' : 'Create Category'}
+                    </button>
+                </div>
+            </div>
+        </div >
     );
 }
 
@@ -492,4 +828,29 @@ const moveBtnStyle = {
     ...iconBtnStyle,
     color: '#94a3b8',
     padding: '2px'
+};
+
+const floatingInputStyle = {
+    width: '100%',
+    padding: '1rem',
+    borderRadius: '12px',
+    border: '1.5px solid #e2e8f0',
+    fontSize: '0.95rem',
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    background: '#f8fafc',
+    color: '#1e293b',
+    height: 'auto',
+    minHeight: '56px'
+};
+
+const floatingLabelStyle = {
+    position: 'absolute',
+    left: '1rem',
+    top: '1rem',
+    fontSize: '0.95rem',
+    color: '#94a3b8',
+    pointerEvents: 'none',
+    transition: 'all 0.2s',
+    fontWeight: 500
 };

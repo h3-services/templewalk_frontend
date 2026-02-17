@@ -24,7 +24,7 @@ import {
     Home
 } from 'lucide-react';
 
-export function RoutesAndStops() {
+export function RoutesAndStops({ startCoords, destCoords, stops = [], onUpdateStops, onUpdateCoords }) {
     const mapContainerRef = useRef(null);
     const mapInstanceRef = useRef(null);
     const markersRef = useRef([]);
@@ -32,13 +32,6 @@ export function RoutesAndStops() {
 
     const [startAddr, setStartAddr] = useState("Cimarron Family Aquatic Cent");
     const [destAddr, setDestAddr] = useState("DFW Hindu Temple (Default)");
-    const [startCoords, setStartCoords] = useState({ lat: 9.9195, lng: 78.1193 });
-    const [destCoords, setDestCoords] = useState({ lat: 9.8329, lng: 78.0841 });
-
-    const [stops, setStops] = useState([
-        { id: 1, name: "McDonald's", type: "Annathanam", icon: <Utensils size={18} />, color: "#10b981", coords: { lat: 9.9252, lng: 78.1198 } },
-        { id: 2, name: "Bird's Fort Trail Park", type: "Resting Place/Park", icon: <Trees size={18} />, color: "#f97316", coords: { lat: 9.9152, lng: 78.1298 } },
-    ]);
 
     const [mapLoaded, setMapLoaded] = useState(false);
 
@@ -68,10 +61,10 @@ export function RoutesAndStops() {
 
         addMarker(startCoords, "#f97316", "Start");
         addMarker(destCoords, "#1e293b", "End");
-        stops.forEach(s => addMarker(s.coords, s.color, s.name));
+        (stops || []).forEach(s => addMarker(s.coords, s.color, s.name));
 
         if (polylineRef.current) polylineRef.current.setMap(null);
-        const pathPoints = [startCoords, ...stops.map(s => s.coords), destCoords];
+        const pathPoints = [startCoords, ...(stops || []).map(s => s.coords), destCoords];
         polylineRef.current = new google.maps.Polyline({
             path: pathPoints,
             geodesic: true,
@@ -111,6 +104,15 @@ export function RoutesAndStops() {
         }
         updateMap();
     }, [mapLoaded, updateMap]);
+
+    const getStopStyles = (type) => {
+        switch (type) {
+            case 'Annathanam': return { icon: <Utensils size={14} />, color: '#10b981' };
+            case 'Resting Place/Park': return { icon: <Trees size={14} />, color: '#f97316' };
+            case 'Medical': return { icon: <Stethoscope size={14} />, color: '#ef4444' };
+            default: return { icon: <MapPin size={14} />, color: '#3b82f6' };
+        }
+    };
 
     return (
         <div style={{
@@ -197,29 +199,35 @@ export function RoutesAndStops() {
                         </div>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {stops.map(stop => (
-                                <div key={stop.id} style={stopCardStyleSmall}>
-                                    <div style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        borderRadius: '50%',
-                                        background: stop.color,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: 'white'
-                                    }}>
-                                        {React.cloneElement(stop.icon, { size: 14 })}
+                            {stops.map(stop => {
+                                const styles = getStopStyles(stop.type);
+                                return (
+                                    <div key={stop.id} style={stopCardStyleSmall}>
+                                        <div style={{
+                                            width: '32px',
+                                            height: '32px',
+                                            borderRadius: '50%',
+                                            background: styles.color,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: 'white'
+                                        }}>
+                                            {styles.icon}
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1e293b' }}>{stop.name}</div>
+                                            <div style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>{stop.type}</div>
+                                        </div>
+                                        <button
+                                            onClick={() => onUpdateStops(stops.filter(s => s.id !== stop.id))}
+                                            style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0.25rem' }}
+                                        >
+                                            <Trash2 size={14} />
+                                        </button>
                                     </div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1e293b' }}>{stop.name}</div>
-                                        <div style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>{stop.type}</div>
-                                    </div>
-                                    <button style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '0.25rem' }}>
-                                        <Trash2 size={14} />
-                                    </button>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     </div>
 
@@ -231,6 +239,7 @@ export function RoutesAndStops() {
                             <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '0.35rem' }}>Stop Name / Address</label>
                             <div style={{ position: 'relative' }}>
                                 <input
+                                    id="new-stop-name"
                                     style={{ ...inputStyleSmall, background: 'white' }}
                                     placeholder="Type to search address..."
                                 />
@@ -241,7 +250,7 @@ export function RoutesAndStops() {
                         <div style={{ marginBottom: '0.75rem' }}>
                             <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '0.35rem' }}>Category</label>
                             <div style={{ position: 'relative' }}>
-                                <select style={{ ...inputStyleSmall, background: 'white', WebkitAppearance: 'none' }}>
+                                <select id="new-stop-category" style={{ ...inputStyleSmall, background: 'white', WebkitAppearance: 'none' }}>
                                     <option>Select category</option>
                                     <option>Annathanam</option>
                                     <option>Resting Place/Park</option>
@@ -251,7 +260,23 @@ export function RoutesAndStops() {
                             </div>
                         </div>
 
-                        <button style={confirmBtnStyleSmall}>
+                        <button
+                            onClick={() => {
+                                const name = document.getElementById('new-stop-name').value;
+                                const type = document.getElementById('new-stop-category').value;
+                                if (name && type !== 'Select category') {
+                                    onUpdateStops([...stops, {
+                                        id: Date.now(),
+                                        name,
+                                        type,
+                                        coords: { lat: 9.91 + Math.random() * 0.05, lng: 78.11 + Math.random() * 0.05 }
+                                    }]);
+                                    document.getElementById('new-stop-name').value = '';
+                                    document.getElementById('new-stop-category').value = 'Select category';
+                                }
+                            }}
+                            style={confirmBtnStyleSmall}
+                        >
                             <Plus size={14} /> Confirm Stop
                         </button>
                     </div>

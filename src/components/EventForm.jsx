@@ -1,11 +1,17 @@
 import React from 'react';
 import { Calendar as CalendarIcon, Clock, Sparkles } from 'lucide-react';
 
-export function EventForm({ formData, setFormData }) {
+export function EventForm({ formData, setFormData, errors = {} }) {
     const handleChange = (e) => {
         const { name, value } = e.target;
         setFormData({ ...formData, [name]: value });
     };
+
+    const getErrorStyle = (fieldName) => ({
+        ...inputStyle,
+        borderColor: errors[fieldName] ? '#ef4444' : '#e2e8f0',
+        backgroundColor: errors[fieldName] ? '#fef2f2' : '#f8fafc',
+    });
 
     return (
         <div style={{
@@ -63,10 +69,10 @@ export function EventForm({ formData, setFormData }) {
                             name="eventName"
                             value={formData.eventName}
                             onChange={handleChange}
-                            style={inputStyle}
+                            style={getErrorStyle('eventName')}
                             placeholder="e.g. Annual Arulmigu Kapaleeshwarar Padhayatra"
                         />
-                        <p style={hintStyle}>This name will be visible to all devotees on the mobile app.</p>
+                        {errors.eventName ? <p style={errorTextStyle}>{errors.eventName}</p> : <p style={hintStyle}>This name will be visible to all devotees on the mobile app.</p>}
                     </div>
 
                     {/* Date & Time */}
@@ -79,10 +85,11 @@ export function EventForm({ formData, setFormData }) {
                                     name="eventDate"
                                     value={formData.eventDate}
                                     onChange={handleChange}
-                                    style={inputStyle}
+                                    style={getErrorStyle('eventDate')}
                                 />
                                 <CalendarIcon size={18} style={iconStyle} />
                             </div>
+                            {errors.eventDate && <p style={errorTextStyle}>{errors.eventDate}</p>}
                         </div>
                         <div>
                             <label style={labelStyle}>Start Time <span style={{ color: '#f97316' }}>*</span></label>
@@ -92,16 +99,17 @@ export function EventForm({ formData, setFormData }) {
                                     name="startTime"
                                     value={formData.startTime}
                                     onChange={handleChange}
-                                    style={inputStyle}
+                                    style={getErrorStyle('startTime')}
                                 />
                                 <Clock size={18} style={iconStyle} />
                             </div>
+                            {errors.startTime && <p style={errorTextStyle}>{errors.startTime}</p>}
                         </div>
                     </div>
 
                     {/* Contact */}
                     <div>
-                        <label style={labelStyle}>Emergency Helpline</label>
+                        <label style={labelStyle}>Emergency Helpline <span style={{ color: '#f97316' }}>*</span></label>
                         <div style={{ position: 'relative' }}>
                             <span style={{
                                 position: 'absolute',
@@ -120,11 +128,11 @@ export function EventForm({ formData, setFormData }) {
                                 name="contact"
                                 value={formData.contact}
                                 onChange={handleChange}
-                                style={{ ...inputStyle, paddingLeft: '4rem' }}
+                                style={{ ...getErrorStyle('contact'), paddingLeft: '4rem' }}
                                 placeholder="98765 43210"
                             />
                         </div>
-                        <p style={hintStyle}>A dedicated helpline for emergencies and devotee queries.</p>
+                        {errors.contact ? <p style={errorTextStyle}>{errors.contact}</p> : <p style={hintStyle}>A dedicated helpline for emergencies and devotee queries.</p>}
                     </div>
                 </div>
 
@@ -136,14 +144,14 @@ export function EventForm({ formData, setFormData }) {
                         value={formData.description}
                         onChange={handleChange}
                         style={{
-                            ...inputStyle,
+                            ...getErrorStyle('description'),
                             flex: 1,
                             resize: 'none',
                             minHeight: '180px'
                         }}
                         placeholder="Enter a brief summary of the spiritual significance, pilgrimage rules, and what devotees can expect during this sacred walk..."
                     ></textarea>
-                    <p style={hintStyle}>This description will appear on the event detail page in the mobile app.</p>
+                    {errors.description ? <p style={errorTextStyle}>{errors.description}</p> : <p style={hintStyle}>This description will appear on the event detail page in the mobile app.</p>}
                 </div>
             </div>
 
@@ -196,7 +204,12 @@ const iconStyle = {
     color: '#94a3b8',
     pointerEvents: 'none'
 };
-
+const errorTextStyle = {
+    fontSize: '0.75rem',
+    color: '#ef4444',
+    marginTop: '0.5rem',
+    fontWeight: 600
+};
 const hintStyle = {
     fontSize: '0.75rem',
     color: '#94a3b8',

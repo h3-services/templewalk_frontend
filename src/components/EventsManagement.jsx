@@ -7,61 +7,7 @@ import { Dropdown } from './Dropdown';
 import { SearchBar, Pagination } from './index';
 
 export function EventsManagement({ onCreateNew, onEdit }) {
-    const events = [
-        {
-            id: 1,
-            title: "Arulmigu Kapaleeshwarar Padhayatra",
-            schedule: "Oct 24, 2024 • 06:00 AM",
-            category: "Padhayatra",
-            status: "Live Now",
-            statusColor: "#22c55e",
-            participants: "1,240",
-            participantsLabel: "Enrolled Devotees",
-            icon: <Play size={18} />,
-            iconBg: "#fff7ed",
-            iconColor: "#f97316"
-        },
-        {
-            id: 2,
-            title: "Maha Shivaratri Night Walk",
-            schedule: "Mar 08, 2024 • 10:00 PM",
-            category: "Spiritual Walk",
-            status: "Completed",
-            statusColor: "#94a3b8",
-            participants: "4,850",
-            participantsLabel: "Total Participants",
-            icon: <Calendar size={18} />,
-            iconBg: "#f5f3ff",
-            iconColor: "#8b5cf6"
-        },
-        {
-            id: 3,
-            title: "Annual Brahmotsavam Procession",
-            schedule: "Nov 12, 2024 • 04:30 AM",
-            category: "Festival",
-            status: "Upcoming",
-            statusColor: "#3b82f6",
-            participants: "842",
-            participantsLabel: "Registrations Open",
-            icon: <CheckCircle2 size={18} />,
-            iconBg: "#fefce8",
-            iconColor: "#eab308"
-        },
-        {
-            id: 4,
-            title: "Thiruvannamalai Girivalam Special",
-            schedule: "Draft • Last edited 2 days ago",
-            category: "Pilgrimage",
-            status: "Draft",
-            statusColor: "#64748b",
-            participants: "—",
-            participantsLabel: "Not Published",
-            icon: <Clock size={18} />,
-            iconBg: "#f8fafc",
-            iconColor: "#94a3b8",
-            isDraft: true
-        }
-    ];
+    const events = [];
 
     const liveCount = events.filter(e => !e.isDraft).length;
     const draftCount = events.filter(e => e.isDraft).length;
@@ -241,66 +187,108 @@ export function EventsManagement({ onCreateNew, onEdit }) {
 
                 {/* Event List */}
                 <div style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto', flex: 1, maxHeight: '500px', scrollbarWidth: 'thin', scrollbarColor: '#f1f5f9 transparent' }}>
-                    {currentListData.map((event, idx) => (
-                        <div key={event.id} style={{
-                            display: 'grid',
-                            display: 'grid',
-                            gridTemplateColumns: '2.5fr 1fr 1.2fr 1fr',
-                            padding: '1rem 2rem',
+                    {currentListData.length === 0 ? (
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
                             alignItems: 'center',
-                            borderBottom: idx === events.length - 1 ? 'none' : '1.5px solid #f8fafc',
-                            transition: 'all 0.2s'
-                        }} className="event-row">
-
-                            {/* Details */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                <div style={{
-                                    width: '48px',
-                                    height: '48px',
-                                    borderRadius: '14px',
-                                    background: event.iconBg,
-                                    color: event.iconColor,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    flexShrink: 0
-                                }}>
-                                    {event.icon}
-                                </div>
-                                <div>
-                                    <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem', marginBottom: '0.15rem' }}>{event.title}</div>
-                                    <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>{event.schedule}</div>
-                                </div>
+                            justifyContent: 'center',
+                            padding: '4rem 2rem',
+                            gap: '1rem'
+                        }}>
+                            <div style={{
+                                width: '80px',
+                                height: '80px',
+                                borderRadius: '20px',
+                                background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                marginBottom: '0.5rem'
+                            }}>
+                                <Calendar size={36} color="#f97316" />
                             </div>
-
-                            {/* Status */}
-                            <div className="col-status" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: event.statusColor }} />
-                                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: event.statusColor }}>{event.status}</span>
-                            </div>
-
-                            {/* Participants */}
-                            <div className="col-participants">
-                                <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{event.participants}</div>
-                                <div style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>{event.participantsLabel}</div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="col-actions" style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-start', alignItems: 'center' }}>
-                                {event.isDraft ? (
-                                    <>
-                                        <button style={{ color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem' }} onClick={() => onEdit(event)}><Edit2 size={18} /></button>
-                                        <button style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem' }}><Trash2 size={18} /></button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <button style={{ color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem' }} onClick={() => onEdit(event)}><Edit2 size={18} /></button>
-                                        <button style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem' }}><Trash2 size={18} /></button>
-                                    </>
-                                )}
-                            </div>
+                            <h3 style={{
+                                fontSize: '1.1rem',
+                                fontWeight: 700,
+                                color: '#1e293b',
+                                margin: 0
+                            }}>No walks found</h3>
+                            <p style={{
+                                fontSize: '0.9rem',
+                                color: '#64748b',
+                                textAlign: 'center',
+                                margin: 0,
+                                maxWidth: '400px'
+                            }}>
+                                {searchTerm
+                                    ? `No walks matching "${searchTerm}". Try a different search term.`
+                                    : 'Get started by creating your first temple walk event.'
+                                }
+                            </p>
                         </div>
-                    ))}
+                    ) : (
+                        currentListData.map((event, idx) => (
+                            <div key={event.id} style={{
+                                display: 'grid',
+                                display: 'grid',
+                                gridTemplateColumns: '2.5fr 1fr 1.2fr 1fr',
+                                padding: '1rem 2rem',
+                                alignItems: 'center',
+                                borderBottom: idx === events.length - 1 ? 'none' : '1.5px solid #f8fafc',
+                                transition: 'all 0.2s'
+                            }} className="event-row">
+
+                                {/* Details */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <div style={{
+                                        width: '48px',
+                                        height: '48px',
+                                        borderRadius: '14px',
+                                        background: event.iconBg,
+                                        color: event.iconColor,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0
+                                    }}>
+                                        {event.icon}
+                                    </div>
+                                    <div>
+                                        <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem', marginBottom: '0.15rem' }}>{event.title}</div>
+                                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>{event.schedule}</div>
+                                    </div>
+                                </div>
+
+                                {/* Status */}
+                                <div className="col-status" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: event.statusColor }} />
+                                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: event.statusColor }}>{event.status}</span>
+                                </div>
+
+                                {/* Participants */}
+                                <div className="col-participants">
+                                    <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{event.participants}</div>
+                                    <div style={{ fontSize: '0.65rem', color: '#94a3b8', fontWeight: 600 }}>{event.participantsLabel}</div>
+                                </div>
+
+                                {/* Actions */}
+                                <div className="col-actions" style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-start', alignItems: 'center' }}>
+                                    {event.isDraft ? (
+                                        <>
+                                            <button style={{ color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem' }} onClick={() => onEdit(event)}><Edit2 size={18} /></button>
+                                            <button style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem' }}><Trash2 size={18} /></button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button style={{ color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem' }} onClick={() => onEdit(event)}><Edit2 size={18} /></button>
+                                            <button style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem' }}><Trash2 size={18} /></button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        ))
+                    )}
                 </div>
 
                 <Pagination

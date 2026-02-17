@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Plus, ChevronDown, Search, X, MessageSquare, Mic, Info, Send, Calendar, Users, User, ShieldCheck
 } from 'lucide-react';
@@ -29,25 +30,45 @@ export function Notifications() {
     const [isTitleFocused, setIsTitleFocused] = useState(false);
     const [isMessageFocused, setIsMessageFocused] = useState(false);
 
-    const broadcastData = [
-        { id: 1, title: "Evening Puja Timings Updated", description: "Aarti will start 15 minutes earlier today...", dateSent: "Oct 24, 2023", timeSent: "05:30 PM", audience: "DEVOTEES", audienceBg: "#eff6ff", audienceColor: "#3b82f6", reach: "4,280", deliveryRate: "92% Delivery" },
-        { id: 2, title: "New Volunteer Registration", description: "Join our task force for the upcoming festival...", dateSent: "Oct 22, 2023", timeSent: "10:15 AM", audience: "VOLUNTEERS", audienceBg: "#f0fdf4", audienceColor: "#22c55e", reach: "850", deliveryRate: "98% Delivery" },
-        { id: 3, title: "Weekly Spiritual Newsletter", description: "Read about the significance of Kartik month...", dateSent: "Oct 20, 2023", timeSent: "08:00 AM", audience: "ALL USERS", audienceBg: "#fff7ed", audienceColor: "#f97316", reach: "12,402", deliveryRate: "88% Delivery" },
-        { id: 4, title: "System Maintenance Alert", description: "The app will be down for 2 hours on Sunday...", dateSent: "Oct 18, 2023", timeSent: "11:45 PM", audience: "ALL USERS", audienceBg: "#fff7ed", audienceColor: "#f97316", reach: "15,000", deliveryRate: "99% Delivery" },
-        { id: 5, title: "Temple Cleanliness Drive", description: "Join us this Saturday for a community cleanup...", dateSent: "Oct 15, 2023", timeSent: "07:00 AM", audience: "VOLUNTEERS", audienceBg: "#f0fdf4", audienceColor: "#22c55e", reach: "1,200", deliveryRate: "95% Delivery" },
-        { id: 6, title: "Special Bhajan Session", description: "Maestro Ramesh will be leading the session...", dateSent: "Oct 12, 2023", timeSent: "06:00 PM", audience: "ALL USERS", audienceBg: "#fff7ed", audienceColor: "#f97316", reach: "8,500", deliveryRate: "91% Delivery" },
-        { id: 7, title: "Prasadam Distribution", description: "Lunch will be served to all devotees...", dateSent: "Oct 10, 2023", timeSent: "12:30 PM", audience: "DEVOTEES", audienceBg: "#eff6ff", audienceColor: "#3b82f6", reach: "5,000", deliveryRate: "94% Delivery" },
-        { id: 8, title: "Yoga & Meditation Camp", description: "A 3-day health camp starting Monday...", dateSent: "Oct 08, 2023", timeSent: "05:00 AM", audience: "ALL USERS", audienceBg: "#fff7ed", audienceColor: "#f97316", reach: "10,200", deliveryRate: "89% Delivery" },
-        { id: 9, title: "Festival Decoration Help", description: "Volunteers needed for floral arrangements...", dateSent: "Oct 05, 2023", timeSent: "09:00 AM", audience: "VOLUNTEERS", audienceBg: "#f0fdf4", audienceColor: "#22c55e", reach: "600", deliveryRate: "97% Delivery" },
-        { id: 10, title: "Donation Drive Success", description: "Thank you for supporting the educational fund...", dateSent: "Oct 02, 2023", timeSent: "04:30 PM", audience: "ALL USERS", audienceBg: "#fff7ed", audienceColor: "#f97316", reach: "20,000", deliveryRate: "99% Delivery" }
-    ];
+    const [broadcasts, setBroadcasts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchBroadcasts = async () => {
+        try {
+            const response = await fetch('/api/alerts/notifications/');
+            if (response.ok) {
+                const data = await response.json();
+                const mappedData = Array.isArray(data) ? data.map(item => ({
+                    id: item.notification_id || item.id,
+                    title: item.title,
+                    description: item.message,
+                    dateSent: item.created_at ? new Date(item.created_at).toLocaleDateString() : 'Unknown',
+                    timeSent: item.created_at ? new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+                    audience: (item.target_role || 'ALL').toUpperCase() + (item.target_role === 'devotee' ? 'S' : 'RS'), // Simple pluralization
+                    audienceBg: item.target_role === 'volunteer' ? "#f0fdf4" : (item.target_role === 'devotee' ? "#eff6ff" : "#fff7ed"),
+                    audienceColor: item.target_role === 'volunteer' ? "#22c55e" : (item.target_role === 'devotee' ? "#3b82f6" : "#f97316"),
+                    reach: "-", // API doesn't seem to have stats yet
+                    deliveryRate: "-"
+                })) : [];
+                setBroadcasts(mappedData);
+            }
+        } catch (error) {
+            console.error("Error loading broadcasts", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    React.useEffect(() => {
+        fetchBroadcasts();
+    }, []);
 
     const filteredBroadcasts = useMemo(() => {
-        return broadcastData.filter(b =>
+        return broadcasts.filter(b =>
             b.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             b.audience.toLowerCase().includes(searchTerm.toLowerCase())
         );
-    }, [searchTerm]);
+    }, [broadcasts, searchTerm]);
 
     const totalPages = Math.ceil(filteredBroadcasts.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -65,8 +86,8 @@ export function Notifications() {
             minHeight: 0,
             overflow: 'hidden'
         }}>
-            {/* Overlay */}
-            {isDrawerOpen && (
+            {/* Overlay via Portal */}
+            {isDrawerOpen && createPortal(
                 <div
                     onClick={() => setIsDrawerOpen(false)}
                     style={{
@@ -75,12 +96,12 @@ export function Notifications() {
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        backgroundColor: 'rgba(0,0,0,0.1)',
-                        backdropFilter: 'blur(2px)',
-                        zIndex: 40,
+                        backgroundColor: 'rgba(0,0,0,0.3)',
+                        zIndex: 9998,
                         transition: 'all 0.3s'
                     }}
-                />
+                />,
+                document.body
             )}
 
             <div className="notifications-page" style={{
@@ -228,68 +249,114 @@ export function Notifications() {
                         scrollbarWidth: 'thin',
                         scrollbarColor: '#f1f5f9 transparent'
                     }}>
-                        {currentItems.map((item, idx) => (
-                            <div key={item.id} style={{
-                                display: 'grid',
-                                gridTemplateColumns: '2.5fr 1.5fr 1fr',
-                                padding: '1rem 2rem',
-                                borderBottom: idx === currentItems.length - 1 ? 'none' : '1.5px solid #f8fafc',
+                        {loading ? (
+                            <div style={{ padding: '4rem', textAlign: 'center', color: '#64748b' }}>
+                                <p>Loading broadcasts...</p>
+                            </div>
+                        ) : currentItems.length === 0 ? (
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
                                 alignItems: 'center',
-                                transition: 'all 0.2s'
-                            }} className="broadcast-row">
-                                {/* Broadcast Info with Icon */}
-                                <div className="col-broadcast" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    <div style={{
-                                        width: '48px',
-                                        height: '48px',
-                                        borderRadius: '14px',
-                                        background: item.audienceBg,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        flexShrink: 0
-                                    }}>
-                                        <MessageSquare size={20} color={item.audienceColor} />
-                                    </div>
-                                    <div>
-                                        <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{item.title}</div>
-                                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600, marginTop: '0.2rem' }}>
-                                            {item.dateSent} • {item.timeSent}
+                                justifyContent: 'center',
+                                padding: '4rem 2rem',
+                                gap: '1rem'
+                            }}>
+                                <div style={{
+                                    width: '80px',
+                                    height: '80px',
+                                    borderRadius: '20px',
+                                    background: 'linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    marginBottom: '0.5rem'
+                                }}>
+                                    <MessageSquare size={36} color="#8b5cf6" />
+                                </div>
+                                <h3 style={{
+                                    fontSize: '1.1rem',
+                                    fontWeight: 700,
+                                    color: '#1e293b',
+                                    margin: 0
+                                }}>No broadcasts found</h3>
+                                <p style={{
+                                    fontSize: '0.9rem',
+                                    color: '#64748b',
+                                    textAlign: 'center',
+                                    margin: 0,
+                                    maxWidth: '400px'
+                                }}>
+                                    {searchTerm
+                                        ? `No broadcasts matching "${searchTerm}". Try a different search term.`
+                                        : 'Get started by creating your first broadcast notification.'
+                                    }
+                                </p>
+                            </div>
+                        ) : (
+                            currentItems.map((item, idx) => (
+                                <div key={item.id} style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '2.5fr 1.5fr 1fr',
+                                    padding: '1rem 2rem',
+                                    borderBottom: idx === currentItems.length - 1 ? 'none' : '1.5px solid #f8fafc',
+                                    alignItems: 'center',
+                                    transition: 'all 0.2s'
+                                }} className="broadcast-row">
+                                    {/* Broadcast Info with Icon */}
+                                    <div className="col-broadcast" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                        <div style={{
+                                            width: '48px',
+                                            height: '48px',
+                                            borderRadius: '14px',
+                                            background: item.audienceBg,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0
+                                        }}>
+                                            <MessageSquare size={20} color={item.audienceColor} />
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{item.title}</div>
+                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600, marginTop: '0.2rem' }}>
+                                                {item.dateSent} • {item.timeSent}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Audience Badge */}
-                                <div className="col-audience">
-                                    <span style={{
-                                        padding: '0.4rem 0.85rem',
-                                        borderRadius: '10px',
-                                        fontSize: '0.7rem',
-                                        fontWeight: 800,
-                                        background: item.audienceBg,
-                                        color: item.audienceColor,
-                                        letterSpacing: '0.02em',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '0.4rem'
-                                    }}>
+                                    {/* Audience Badge */}
+                                    <div className="col-audience">
                                         <span style={{
-                                            width: '6px',
-                                            height: '6px',
-                                            borderRadius: '50%',
-                                            background: item.audienceColor
-                                        }}></span>
-                                        {item.audience}
-                                    </span>
-                                </div>
+                                            padding: '0.4rem 0.85rem',
+                                            borderRadius: '10px',
+                                            fontSize: '0.7rem',
+                                            fontWeight: 800,
+                                            background: item.audienceBg,
+                                            color: item.audienceColor,
+                                            letterSpacing: '0.02em',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem'
+                                        }}>
+                                            <span style={{
+                                                width: '6px',
+                                                height: '6px',
+                                                borderRadius: '50%',
+                                                background: item.audienceColor
+                                            }}></span>
+                                            {item.audience}
+                                        </span>
+                                    </div>
 
-                                {/* Reach Stats */}
-                                <div className="col-reach" style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b' }}>{item.reach}</div>
-                                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#10b981' }}>{item.deliveryRate}</div>
+                                    {/* Reach Stats */}
+                                    <div className="col-reach" style={{ textAlign: 'right' }}>
+                                        <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#1e293b' }}>{item.reach}</div>
+                                        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#10b981' }}>{item.deliveryRate}</div>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))
+                        )}
                     </div>
 
                     <Pagination
@@ -305,204 +372,270 @@ export function Notifications() {
                 </div>
             </div>
 
-            {/* Create New Broadcast Drawer */}
-            <div style={{
-                position: 'fixed',
-                top: 0,
-                right: isDrawerOpen ? 0 : '-500px',
-                width: '500px',
-                height: '100vh',
-                backgroundColor: 'white',
-                boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
-                zIndex: 50,
-                transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                display: 'flex',
-                flexDirection: 'column'
-            }}>
-                {/* Drawer Header */}
+            {/* Create New Broadcast Drawer via Portal */}
+            {createPortal(
                 <div style={{
-                    padding: '24px 28px',
-                    borderBottom: '1px solid #f3f4f6',
+                    position: 'fixed',
+                    top: 0,
+                    right: isDrawerOpen ? 0 : '-500px',
+                    width: '500px',
+                    height: '100vh',
+                    backgroundColor: 'white',
+                    boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
+                    zIndex: 9999,
+                    transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start'
+                    flexDirection: 'column',
+                    borderTopLeftRadius: '24px',
+                    borderBottomLeftRadius: '24px'
                 }}>
-                    <div>
-                        <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#111827', margin: 0 }}>Create New Broadcast</h2>
-                        <p style={{ fontSize: '13px', color: '#6b7280', margin: '4px 0 0 0' }}>Compose a message to send to your community</p>
-                    </div>
-                    <button
-                        onClick={() => setIsDrawerOpen(false)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}
-                    >
-                        <X size={20} />
-                    </button>
-                </div>
-
-                {/* Drawer Body */}
-                <div style={{ padding: '28px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
-                    {/* Title Input */}
-                    <div style={{ position: 'relative' }}>
-                        <label style={{
-                            position: 'absolute',
-                            left: '14px',
-                            top: (isTitleFocused || title) ? '-8px' : '15px',
-                            fontSize: (isTitleFocused || title) ? '12px' : '14px',
-                            color: isTitleFocused ? '#f97316' : '#9ca3af',
-                            backgroundColor: 'white',
-                            padding: '0 5px',
-                            transition: 'all 0.2s ease',
-                            pointerEvents: 'none',
-                            fontWeight: (isTitleFocused || title) ? '700' : '500',
-                            zIndex: 1
-                        }}>
-                            Broadcast Title
-                        </label>
-                        <input
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            onFocus={() => setIsTitleFocused(true)}
-                            onBlur={() => setIsTitleFocused(false)}
-                            style={{
-                                ...inputStyle,
-                                borderColor: isTitleFocused ? '#f97316' : '#e5e7eb',
-                                borderWidth: isTitleFocused ? '2px' : '1px',
-                                padding: isTitleFocused ? '13px 17px' : '14px 18px' // Adjust for border width
-                            }}
-                        />
-                    </div>
-
-                    {/* Message Input */}
-                    <div style={{ position: 'relative' }}>
-                        <label style={{
-                            position: 'absolute',
-                            left: '14px',
-                            top: (isMessageFocused || message) ? '-8px' : '15px',
-                            fontSize: (isMessageFocused || message) ? '12px' : '14px',
-                            color: isMessageFocused ? '#f97316' : '#9ca3af',
-                            backgroundColor: 'white',
-                            padding: '0 5px',
-                            transition: 'all 0.2s ease',
-                            pointerEvents: 'none',
-                            fontWeight: (isMessageFocused || message) ? '700' : '500',
-                            zIndex: 1
-                        }}>
-                            Message
-                        </label>
-                        <textarea
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            onFocus={() => setIsMessageFocused(true)}
-                            onBlur={() => setIsMessageFocused(false)}
-                            style={{
-                                ...inputStyle,
-                                height: '180px',
-                                resize: 'none',
-                                borderColor: isMessageFocused ? '#f97316' : '#e5e7eb',
-                                borderWidth: isMessageFocused ? '2px' : '1px',
-                                padding: isMessageFocused ? '13px 17px' : '14px 18px'
-                            }}
-                        />
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-                            <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: '600' }}>Markdown supported</span>
-                            <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: '600' }}>{message.length} / 500 characters</span>
-                        </div>
-                    </div>
-
-                    {/* Notification Type */}
-                    <div>
-                        <label style={labelStyle}>NOTIFICATION TYPE</label>
-                        <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
-                            <button
-                                onClick={() => setNotifType('text')}
-                                style={notifType === 'text' ? selectedOptionStyle : optionStyle}
-                            >
-                                <MessageSquare size={16} /> Text Notification
-                            </button>
-                            <button
-                                onClick={() => setNotifType('voice')}
-                                style={notifType === 'voice' ? selectedOptionStyle : optionStyle}
-                            >
-                                <Mic size={16} /> Voice Notification
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Send To */}
-                    <div>
-                        <label style={labelStyle}>SEND TO</label>
-                        <div style={{ display: 'flex', gap: '7px', marginTop: '10px' }}>
-                            {['All App Users', 'Devotees Only', 'Volunteers Only'].map((opt) => (
-                                <button
-                                    key={opt}
-                                    onClick={() => setSendTo(opt.toLowerCase().split(' ')[0])}
-                                    style={sendTo === opt.toLowerCase().split(' ')[0] ? selectedCapsuleStyle : capsuleStyle}
-                                >
-                                    {opt}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Info Alert */}
+                    {/* Drawer Header */}
                     <div style={{
-                        backgroundColor: '#f8fafc',
-                        padding: '16px',
-                        borderRadius: '12px',
+                        padding: '24px 28px',
+                        borderBottom: '1px solid #f3f4f6',
                         display: 'flex',
-                        gap: '12px',
+                        justifyContent: 'space-between',
                         alignItems: 'flex-start'
                     }}>
-                        <Info size={16} color="#94a3b8" style={{ marginTop: '2px' }} />
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0, lineHeight: '1.5', fontWeight: '500' }}>
-                            Selecting 'All App Users' will trigger a notification to 15,420 registered accounts.
-                        </p>
+                        <div>
+                            <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#111827', margin: 0 }}>Create New Broadcast</h2>
+                            <p style={{ fontSize: '13px', color: '#6b7280', margin: '4px 0 0 0' }}>Compose a message to send to your community</p>
+                        </div>
+                        <button
+                            onClick={() => setIsDrawerOpen(false)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}
+                        >
+                            <X size={20} />
+                        </button>
                     </div>
-                </div>
 
-                {/* Drawer Footer */}
-                <div style={{
-                    padding: '24px 28px',
-                    borderTop: '1px solid #f3f4f6',
-                    display: 'flex',
-                    gap: '12px'
-                }}>
-                    <button
-                        onClick={() => setIsDrawerOpen(false)}
-                        style={{
-                            flex: 1,
-                            padding: '12px',
-                            borderRadius: '10px',
-                            border: '1px solid #e5e7eb',
-                            backgroundColor: 'white',
-                            color: '#111827',
-                            fontSize: '14px',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Discard
-                    </button>
-                    <button style={{
-                        flex: 1.5,
-                        padding: '12px',
-                        borderRadius: '10px',
-                        border: 'none',
-                        backgroundColor: '#f97316',
-                        color: 'white',
-                        fontSize: '14px',
-                        fontWeight: '700',
+                    {/* Drawer Body */}
+                    <div style={{ padding: '28px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+                        {/* Title Input */}
+                        <div style={{ position: 'relative' }}>
+                            <label style={{
+                                position: 'absolute',
+                                left: '14px',
+                                top: (isTitleFocused || title) ? '-8px' : '15px',
+                                fontSize: (isTitleFocused || title) ? '12px' : '14px',
+                                color: isTitleFocused ? '#f97316' : '#9ca3af',
+                                backgroundColor: 'white',
+                                padding: '0 5px',
+                                transition: 'all 0.2s ease',
+                                pointerEvents: 'none',
+                                fontWeight: (isTitleFocused || title) ? '700' : '500',
+                                zIndex: 1
+                            }}>
+                                Broadcast Title <span style={{ color: '#f97316' }}>*</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                onFocus={() => setIsTitleFocused(true)}
+                                onBlur={() => setIsTitleFocused(false)}
+                                style={{
+                                    ...inputStyle,
+                                    borderColor: isTitleFocused ? '#f97316' : '#e5e7eb',
+                                    borderWidth: isTitleFocused ? '2px' : '1px',
+                                    padding: isTitleFocused ? '13px 17px' : '14px 18px' // Adjust for border width
+                                }}
+                            />
+                        </div>
+
+                        {/* Message Input */}
+                        <div style={{ position: 'relative' }}>
+                            <label style={{
+                                position: 'absolute',
+                                left: '14px',
+                                top: (isMessageFocused || message) ? '-8px' : '15px',
+                                fontSize: (isMessageFocused || message) ? '12px' : '14px',
+                                color: isMessageFocused ? '#f97316' : '#9ca3af',
+                                backgroundColor: 'white',
+                                padding: '0 5px',
+                                transition: 'all 0.2s ease',
+                                pointerEvents: 'none',
+                                fontWeight: (isMessageFocused || message) ? '700' : '500',
+                                zIndex: 1
+                            }}>
+                                Message <span style={{ color: '#f97316' }}>*</span>
+                            </label>
+                            <textarea
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                onFocus={() => setIsMessageFocused(true)}
+                                onBlur={() => setIsMessageFocused(false)}
+                                style={{
+                                    ...inputStyle,
+                                    height: '180px',
+                                    resize: 'none',
+                                    borderColor: isMessageFocused ? '#f97316' : '#e5e7eb',
+                                    borderWidth: isMessageFocused ? '2px' : '1px',
+                                    padding: isMessageFocused ? '13px 17px' : '14px 18px'
+                                }}
+                            />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
+                                <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: '600' }}>Markdown supported • ✨ Be Concise</span>
+                                <span style={{ fontSize: '11px', color: message.length > 450 ? '#ef4444' : '#9ca3af', fontWeight: '600' }}>{message.length} / 500 characters</span>
+                            </div>
+                        </div>
+
+                        {/* Notification Type */}
+                        <div>
+                            <label style={labelStyle}>NOTIFICATION TYPE</label>
+                            <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                                <button
+                                    onClick={() => setNotifType('text')}
+                                    style={notifType === 'text' ? selectedOptionStyle : optionStyle}
+                                >
+                                    <MessageSquare size={16} /> Text Notification
+                                </button>
+                                <button
+                                    onClick={() => setNotifType('voice')}
+                                    style={notifType === 'voice' ? selectedOptionStyle : optionStyle}
+                                >
+                                    <Mic size={16} /> Voice Notification
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Send To */}
+                        <div>
+                            <label style={labelStyle}>SEND TO</label>
+                            <div style={{ display: 'flex', gap: '7px', marginTop: '10px' }}>
+                                {['All App Users', 'Devotees Only', 'Volunteers Only'].map((opt) => (
+                                    <button
+                                        key={opt}
+                                        onClick={() => setSendTo(opt.toLowerCase().split(' ')[0])}
+                                        style={sendTo === opt.toLowerCase().split(' ')[0] ? selectedCapsuleStyle : capsuleStyle}
+                                    >
+                                        {opt}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Info Alert */}
+                        <div style={{
+                            backgroundColor: '#f8fafc',
+                            padding: '16px',
+                            borderRadius: '12px',
+                            display: 'flex',
+                            gap: '12px',
+                            alignItems: 'flex-start'
+                        }}>
+                            <Info size={16} color="#94a3b8" style={{ marginTop: '2px' }} />
+                            <p style={{ fontSize: '12px', color: '#64748b', margin: 0, lineHeight: '1.5', fontWeight: '500' }}>
+                                Selecting 'All App Users' will trigger a notification to 15,420 registered accounts.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Drawer Footer */}
+                    <div style={{
+                        padding: '24px 28px',
+                        borderTop: '1px solid #f3f4f6',
                         display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        cursor: 'pointer'
+                        gap: '12px'
                     }}>
-                        Send Broadcast <Send size={16} />
-                    </button>
-                </div>
-            </div>
+                        <button
+                            onClick={() => setIsDrawerOpen(false)}
+                            style={{
+                                flex: 1,
+                                padding: '12px',
+                                borderRadius: '10px',
+                                border: '1px solid #e5e7eb',
+                                backgroundColor: 'white',
+                                color: '#111827',
+                                fontSize: '14px',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Discard
+                        </button>
+                        <button
+                            onClick={async () => {
+                                try {
+                                    if (!title || !message) {
+                                        alert("Please enter both title and message.");
+                                        return;
+                                    }
+
+                                    // Map UI 'sendTo' to API 'target_role'
+                                    let targetRole = "devotee"; // default
+                                    if (sendTo === "all") targetRole = "devotee";
+                                    if (sendTo === "volunteers") targetRole = "volunteer";
+
+                                    const payload = {
+                                        title: title,
+                                        message: message,
+                                        type: "admin",
+                                        target_role: targetRole,
+                                        is_admin_sent: true
+                                    };
+
+                                    const response = await fetch('/api/alerts/notifications/', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json'
+                                        },
+                                        body: JSON.stringify(payload)
+                                    });
+
+                                    if (response.ok) {
+                                        const newNotif = await response.json();
+                                        alert("Broadcast sent successfully!");
+
+                                        // Add to local list
+                                        const now = new Date();
+                                        const newEntry = {
+                                            id: newNotif.notification_id || Math.random(),
+                                            title: newNotif.title,
+                                            description: newNotif.message,
+                                            dateSent: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                                            timeSent: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                                            audience: targetRole === 'volunteer' ? 'VOLUNTEERS' : (targetRole === 'devotee' ? 'DEVOTEES' : 'ALL USERS'),
+                                            audienceBg: targetRole === 'volunteer' ? "#f0fdf4" : "#eff6ff",
+                                            audienceColor: targetRole === 'volunteer' ? "#22c55e" : "#3b82f6",
+                                            reach: "Just now",
+                                            deliveryRate: "Sending..."
+                                        };
+
+                                        setBroadcasts(prev => [newEntry, ...prev]);
+                                        setIsDrawerOpen(false);
+                                        setTitle('');
+                                        setMessage('');
+                                    } else {
+                                        const errorData = await response.json();
+                                        throw new Error(errorData.detail || "Failed to send notification");
+                                    }
+                                } catch (error) {
+                                    console.error("Error creating notification:", error);
+                                    alert(`Error: ${error.message}`);
+                                }
+                            }}
+                            style={{
+                                flex: 1.5,
+                                padding: '12px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                backgroundColor: '#f97316',
+                                color: 'white',
+                                fontSize: '14px',
+                                fontWeight: '700',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                cursor: 'pointer'
+                            }}>
+                            Send Broadcast <Send size={16} />
+                        </button>
+                    </div>
+                </div >,
+                document.body
+            )}
 
             <style dangerouslySetInnerHTML={{
                 __html: `

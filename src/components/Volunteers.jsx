@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Phone,
     Briefcase,
@@ -20,14 +21,14 @@ import { Dropdown } from './Dropdown';
 import { SearchBar, Pagination } from './index';
 
 export function Volunteers() {
-    const [activeTab, setActiveTab] = useState('Pending Approvals (12)');
+    const [activeTab, setActiveTab] = useState('Active Volunteers (0)');
     const [isAddVolunteerOpen, setIsAddVolunteerOpen] = useState(false);
     const [volunteerForm, setVolunteerForm] = useState({
         name: '',
         email: '',
         phone: '',
         area: '',
-        specialization: 'Food Serving'
+        specialization: 'General'
     });
 
     // Focus states for floating labels
@@ -59,83 +60,73 @@ export function Volunteers() {
         document.title = 'Volunteers | Temple Walk Admin';
     }, []);
 
-    const tabs = [
-        'Pending Approvals (12)',
-        'Active Volunteers (148)',
-        'Sent Requests (5)',
+    const [activeVolunteersData, setActiveVolunteersData] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // Fetch Volunteers and Users in parallel
+                const [volunteersRes, usersRes] = await Promise.all([
+                    fetch('/api/v1/volunteers/?skip=0&limit=100'),
+                    fetch('/api/v1/users/?skip=0&limit=100')
+                ]);
+
+                if (volunteersRes.ok && usersRes.ok) {
+                    const volunteers = await volunteersRes.json();
+                    const users = await usersRes.json();
+
+                    // Create a map of users for easy lookup by user_id
+                    const usersMap = {};
+                    users.forEach(u => {
+                        usersMap[u.user_id] = u;
+                    });
+
+                    // Merge volunteer data with user data
+                    const mergedData = volunteers.map((v, index) => {
+                        const user = usersMap[v.user_id] || {};
+                        return {
+                            id: v.volunteer_id || v.id || index + 1,
+                            name: user.name || 'Unknown Volunteer',
+                            event: "Temple Service", // Default as not in API
+                            role: v.skill || "Volunteer",
+                            shift: "Active", // Default
+                            status: "online", // Default
+                            onDuty: v.approved || false, // Mapping approved to onDuty for visibility
+                            initials: (user.name || 'V').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+                            color: ['#fbbf24', '#34d399', '#f87171', '#F3E5F5', '#FCE4EC'][index % 5],
+                            phone: user.phone || 'N/A',
+                            email: user.email || 'N/A'
+                        };
+                    });
+
+                    setActiveVolunteersData(mergedData);
+                } else {
+                    console.error("Failed to fetch data");
+                }
+            } catch (error) {
+                console.error("Error fetching volunteer data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
+
+    const historyVolunteersData = [];
+
+    const sentRequestsData = [];
+
+    const [pendingVols, setPendingVols] = useState([]);
+
+    // Define tabs with dynamic counts after all data is available
+    const tabs = useMemo(() => [
+        `Pending Approvals (${pendingVols.length})`,
+        `Active Volunteers (${activeVolunteersData.length})`,
+        `Sent Requests (${sentRequestsData.length})`,
         'History'
-    ];
-
-    const activeVolunteersData = [
-        { id: 1, name: "Priya Sharma", event: "Morning Puja", role: "Crowd Control", shift: "4h remaining", status: "online", onDuty: true, initials: "PS", color: "#fbbf24", phone: "+91 98765 43210", email: "priya.s@email.com" },
-        { id: 2, name: "Arjun Kumar", event: "Anna Dhanam", role: "Food Serving", shift: "1.5h remaining", status: "online", onDuty: true, initials: "AK", color: "#34d399", phone: "+91 98222 11100", email: "arjun.k@email.com" },
-        { id: 3, name: "Ramesh Varma", previous: "Deepotsavam", role: "Logistics", lastActive: "2 days ago", status: "offline", onDuty: false, initials: "RV", color: "#f87171", phone: "+91 91234 56789", email: "ramesh@email.com" },
-        { id: 4, name: "Suresh Raina", event: "Vahan Seva", role: "Security", shift: "2h remaining", status: "online", onDuty: true, initials: "SR", color: "#F3E5F5", phone: "+91 91234 56789", email: "suresh@email.com" },
-        { id: 5, name: "Anjali Devi", event: "Prasadam", role: "Volunteer", shift: "Done", status: "offline", onDuty: false, initials: "AD", color: "#FCE4EC", phone: "+91 94567 12345", email: "anjali@email.com" },
-        { id: 6, name: "Vikram Seth", event: "Evening Puja", role: "Coordination", shift: "5h remaining", status: "online", onDuty: true, initials: "VS", color: "#E0F2F1", phone: "+91 98761 23456", email: "vikram@email.com" },
-        { id: 7, name: "Lakshmi Bai", event: "Flower Seva", role: "Decorator", shift: "1h remaining", status: "online", onDuty: true, initials: "LB", color: "#FFFDE7", phone: "+91 99887 76655", email: "lakshmi@email.com" }
-    ];
-
-    const historyVolunteersData = [
-        {
-            id: 1,
-            name: "Priya Sharma",
-            subStatus: "Volunteer Helper",
-            date: "Nov 12, 2023",
-            time: "10:30 AM",
-            event: "Diwali Prep Committee",
-            outcome: "COMPLETED",
-            dotColor: "#f97316",
-            initials: "PS",
-            color: "#fbbf24",
-            phone: "+91 98765 43210",
-            email: "priya.s@email.com"
-        },
-        {
-            id: 2,
-            name: "Suresh Kumar",
-            subStatus: "Food Serving",
-            date: "Nov 10, 2023",
-            time: "02:15 PM",
-            event: "Temple Kitchen Help",
-            outcome: "REJECTED",
-            dotColor: "#fbbf24",
-            initials: "SK",
-            color: "#f1f5f9",
-            phone: "+91 98222 11100",
-            email: "suresh@email.com"
-        },
-        {
-            id: 3,
-            name: "Arjun Kumar",
-            subStatus: "Medical Assistant",
-            date: "Nov 08, 2023",
-            time: "08:00 AM",
-            event: "Weekly Satsang Support",
-            outcome: "COMPLETED",
-            dotColor: "#3b82f6",
-            initials: "AK",
-            color: "#34d399",
-            phone: "+91 99000 88777",
-            email: "arjun.k@email.com"
-        }
-    ];
-
-    const sentRequestsData = [
-        { id: 1, name: "Manoj Tiwari", role: "Medical", sentOn: "2 days ago", status: "Invite Sent", initials: "MT", color: "#e0f2fe", phone: "+91 98888 77777", email: "manoj@email.com" },
-        { id: 2, name: "Kavita R", role: "Food Serving", sentOn: "Yesterday", status: "Invite Sent", initials: "KR", color: "#fce7f3", phone: "+91 99999 66666", email: "kavita@email.com" },
-        { id: 3, name: "Balaji S", role: "Emergency", sentOn: "Just now", status: "Sending...", initials: "BS", color: "#fef3c7", phone: "+91 97777 55555", email: "balaji@email.com" },
-        { id: 4, name: "Swathi M", role: "Crowd Control", sentOn: "3 days ago", status: "Invite Sent", initials: "SM", color: "#dbeafe", phone: "+91 96666 44444", email: "swathi@email.com" },
-        { id: 5, name: "Ganesh K", role: "Others", sentOn: "1 week ago", status: "Expired", initials: "GK", color: "#ffedd5", phone: "+91 95555 33333", email: "ganesh@email.com" }
-    ];
-
-    const [pendingVols, setPendingVols] = useState([
-        { id: 1, name: "Priya Sharma", time: "Applied 2h ago", phone: "+91 98765 43210", interest: "Event Coordination", location: "Chennai, TN", initials: "PS", color: "#fbbf24", status: "online", email: "priya.s@email.com", decision: null },
-        { id: 2, name: "Arjun Kumar", time: "Applied 5h ago", phone: "+91 99000 11223", interest: "Food Distribution", location: "Madurai, TN", initials: "AK", color: "#34d399", status: "offline", email: "arjun.k@email.com", decision: null },
-        { id: 3, name: "Ramesh Varma", time: "Applied Yesterday", phone: "+91 91234 56789", interest: "Crowd Control", location: "Trichy, TN", initials: "RV", color: "#f87171", status: "online", email: "ramesh.v@email.com", decision: null },
-        { id: 4, name: "Deepika P.", time: "Applied 1h ago", phone: "+91 94444 33333", interest: "Guest Management", location: "Coimbatore, TN", initials: "DP", color: "#F1F8E9", status: "online", email: "deepika@email.com", decision: null },
-        { id: 5, name: "Kiran Bedi", time: "Applied 3h ago", phone: "+91 95555 66666", interest: "Public Safety", location: "Salem, TN", initials: "KB", color: "#E1F5FE", status: "offline", email: "kiran@email.com", decision: null }
-    ]);
+    ], [pendingVols.length, activeVolunteersData.length, sentRequestsData.length]);
 
     const handleDecision = (id, decision) => {
         setPendingVols(prev => prev.map(v => v.id === id ? { ...v, decision } : v));
@@ -171,13 +162,9 @@ export function Volunteers() {
         );
     }, [sentRequestsData, searchTerm]);
 
-    const currentListData = activeTab === 'History' ? filteredHistory :
-        activeTab.includes('Active') ? filteredActive :
-            activeTab.includes('Sent') ? filteredSentRequests : filteredPending;
-
-    const totalPages = Math.ceil(currentListData.length / itemsPerPage);
+    const totalPages = Math.ceil(filteredActive.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
-    const currentItems = currentListData.slice(startIndex, startIndex + itemsPerPage);
+    const currentItems = filteredActive.slice(startIndex, startIndex + itemsPerPage);
 
     const handlePrevious = () => setCurrentPage(p => Math.max(1, p - 1));
     const handleNext = () => setCurrentPage(p => Math.min(totalPages, p + 1));
@@ -232,110 +219,28 @@ export function Volunteers() {
             {/* Content Section - Full Width */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, minHeight: 0 }}>
 
-                {/* Navigation & Search Row */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    {activeTab === 'History' ? (
-                        <div className="filter-bar history-filters" style={{
-                            background: 'white',
-                            padding: '0.75rem 1rem',
-                            borderRadius: '20px',
-                            display: 'flex',
-                            gap: '1rem',
-                            alignItems: 'center',
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
-                            border: '1.5px solid #f1f5f9',
-                            flexWrap: 'wrap'
-                        }}>
-                            <div className="tab-container" style={{ display: 'flex', gap: '0.25rem', border: 'none', padding: 0 }}>
-                                {tabs.map(tab => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => setActiveTab(tab)}
-                                        style={{
-                                            padding: '0.5rem 1rem',
-                                            borderRadius: '8px',
-                                            border: 'none',
-                                            background: activeTab === tab ? '#f1f5f9' : 'transparent',
-                                            color: activeTab === tab ? '#1e293b' : '#94a3b8',
-                                            fontWeight: 700,
-                                            fontSize: '0.85rem',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s',
-                                            whiteSpace: 'nowrap'
-                                        }}
-                                    >
-                                        {tab}
-                                    </button>
-                                ))}
-                            </div>
-
-                            <div className="filter-actions" style={{ flex: 1, display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                <div style={{ flex: 1, minWidth: '150px' }}>
-                                    <div style={{ background: '#f8fafc', padding: '0.6rem 1rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1.5px solid #f1f5f9' }}>
-                                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>11/01/2023</span>
-                                        <Calendar size={16} color="#F97316" />
-                                    </div>
-                                </div>
-                                <div style={{ flex: 1, minWidth: '150px' }}>
-                                    <div style={{ background: '#f8fafc', padding: '0.6rem 1rem', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1.5px solid #f1f5f9' }}>
-                                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>11/15/2023</span>
-                                        <Calendar size={16} color="#F97316" />
-                                    </div>
-                                </div>
-                                <SearchBar
-                                    placeholder="Search history..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    style={{ flex: 1.5, minWidth: '200px' }}
-                                />
-                            </div>
-                        </div>
-                    ) : (
-                        <div className="filter-bar" style={{
-                            background: 'white',
-                            padding: '0.75rem 1rem',
-                            borderRadius: '20px',
-                            display: 'flex',
-                            gap: '1rem',
-                            alignItems: 'center',
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
-                            border: '1.5px solid #f1f5f9',
-                            flexWrap: 'wrap'
-                        }}>
-                            <div className="tab-container" style={{ display: 'flex', gap: '0.25rem' }}>
-                                {tabs.map(tab => (
-                                    <button
-                                        key={tab}
-                                        onClick={() => setActiveTab(tab)}
-                                        style={{
-                                            padding: '0.5rem 1rem',
-                                            borderRadius: '8px',
-                                            border: 'none',
-                                            background: activeTab === tab ? '#f1f5f9' : 'transparent',
-                                            color: activeTab === tab ? '#1e293b' : '#94a3b8',
-                                            fontWeight: 700,
-                                            fontSize: '0.85rem',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s',
-                                            whiteSpace: 'nowrap'
-                                        }}
-                                    >
-                                        {tab}
-                                    </button>
-                                ))}
-                            </div>
-
-                            <SearchBar
-                                placeholder={`Search ${activeTab.split(' ')[0]} volunteers...`}
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                style={{ flex: 1, minWidth: '200px' }}
-                            />
-                        </div>
-                    )}
+                {/* Search Row */}
+                <div style={{ display: 'flex', justifyContent: 'stretch', marginBottom: '1rem' }}>
+                    <div className="filter-bar" style={{
+                        background: 'white',
+                        padding: '0.75rem 1rem',
+                        borderRadius: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+                        border: '1.5px solid #f1f5f9',
+                        width: '100%'
+                    }}>
+                        <SearchBar
+                            placeholder="Search volunteers..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            style={{ width: '100%' }}
+                        />
+                    </div>
                 </div>
 
-                {/* Table Container - Devotee Page Style */}
+                {/* Table Container - Active Volunteer Only */}
                 <div className="table-card" style={{
                     background: 'white',
                     borderRadius: '28px',
@@ -348,17 +253,14 @@ export function Volunteers() {
                 }}>
                     <div className="table-header" style={{
                         display: 'grid',
-                        gridTemplateColumns: activeTab === 'History' ? '1.5fr 1fr 1.5fr 1fr' :
-                            activeTab.includes('Sent') ? '2fr 1.5fr 1fr 1fr' : '2.5fr 1.5fr 1fr',
+                        gridTemplateColumns: '2.5fr 1.5fr 1fr',
                         padding: '1.25rem 2rem',
                         borderBottom: '1.5px solid #f1f5f9',
                         background: '#fcfcfc'
                     }}>
-                        {(activeTab === 'History' ? ['VOLUNTEER', 'DATE', 'CONTACT INFO', 'STATUS'] :
-                            activeTab.includes('Sent') ? ['VOLUNTEER', 'CONTACT INFO', 'SENT ON', 'STATUS'] :
-                                ['VOLUNTEER', 'CONTACT INFO', 'STATUS']).map(h => (
-                                    <span key={h} className={`header-${h.toLowerCase().replace(' ', '-')}`} style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', letterSpacing: '0.05em' }}>{h}</span>
-                                ))}
+                        {['VOLUNTEER', 'CONTACT INFO', 'STATUS'].map(h => (
+                            <span key={h} className={`header-${h.toLowerCase().replace(' ', '-')}`} style={{ fontSize: '0.65rem', fontWeight: 800, color: '#94a3b8', letterSpacing: '0.05em' }}>{h}</span>
+                        ))}
                     </div>
 
                     <div style={{
@@ -368,50 +270,51 @@ export function Volunteers() {
                         scrollbarWidth: 'thin',
                         scrollbarColor: '#f1f5f9 transparent'
                     }}>
-                        {activeTab === 'History' ? (
-                            currentItems.map((v, i) => (
-                                <div key={v.id} style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: '1.5fr 1fr 1.5fr 1fr',
-                                    padding: '1rem 2rem',
-                                    borderBottom: i === currentItems.length - 1 ? 'none' : '1.5px solid #f8fafc',
-                                    alignItems: 'center'
-                                }} className="volunteer-row history-row">
-                                    <div className="col-volunteer" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                        <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: v.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#1e293b', fontSize: '0.85rem', flexShrink: 0 }}>{v.initials}</div>
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>{v.name}</span>
-                                            <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8' }}>{v.subStatus}</span>
-                                        </div>
-                                    </div>
-                                    <div className="col-date" style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>{v.date}</span>
-                                        <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8' }}>{v.time}</span>
-                                    </div>
-                                    <div className="col-contact">
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>
-                                                <Phone size={14} color="#F97316" /> {v.phone}
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>
-                                                <Mail size={14} color="#F97316" /> {v.email}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="col-status">
-                                        <span style={{
-                                            fontSize: '0.6rem',
-                                            fontWeight: 800,
-                                            padding: '0.35rem 0.75rem',
-                                            borderRadius: '8px',
-                                            background: v.outcome === 'COMPLETED' ? '#ecfdf5' : (v.outcome === 'REJECTED' ? '#fff1f2' : '#f1f5f9'),
-                                            color: v.outcome === 'COMPLETED' ? '#10b981' : (v.outcome === 'REJECTED' ? '#ef4444' : '#64748b'),
-                                            letterSpacing: '0.05em'
-                                        }}>{v.outcome}</span>
-                                    </div>
+                        {loading ? (
+                            <div style={{ padding: '4rem', textAlign: 'center', color: '#64748b' }}>
+                                <p>Loading volunteers...</p>
+                            </div>
+                        ) : currentItems.length === 0 ? (
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '4rem 2rem',
+                                gap: '1rem'
+                            }}>
+                                <div style={{
+                                    width: '80px',
+                                    height: '80px',
+                                    borderRadius: '20px',
+                                    background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    marginBottom: '0.5rem'
+                                }}>
+                                    <Briefcase size={36} color="#3b82f6" />
                                 </div>
-                            ))
-                        ) : activeTab.includes('Active') ? (
+                                <h3 style={{
+                                    fontSize: '1.1rem',
+                                    fontWeight: 700,
+                                    color: '#1e293b',
+                                    margin: 0
+                                }}>No volunteers found</h3>
+                                <p style={{
+                                    fontSize: '0.9rem',
+                                    color: '#64748b',
+                                    textAlign: 'center',
+                                    margin: 0,
+                                    maxWidth: '400px'
+                                }}>
+                                    {searchTerm
+                                        ? `No volunteers matching "${searchTerm}". Try a different search term.`
+                                        : 'Get started by adding your first volunteer to the team.'
+                                    }
+                                </p>
+                            </div>
+                        ) : (
                             currentItems.map((v, i) => (
                                 <div key={v.id} style={{
                                     display: 'grid', gridTemplateColumns: '2.5fr 1.5fr 1fr',
@@ -456,182 +359,13 @@ export function Volunteers() {
                                     </div>
                                 </div>
                             ))
-                        ) : activeTab.includes('Sent') ? (
-                            currentItems.map((v, i) => (
-                                <div key={v.id} style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: '2fr 1.5fr 1fr 1fr',
-                                    padding: '1rem 2rem',
-                                    borderBottom: i === currentItems.length - 1 ? 'none' : '1.5px solid #f8fafc',
-                                    alignItems: 'center',
-                                    transition: 'all 0.2s'
-                                }} className="volunteer-row sent-row">
-                                    <div className="col-volunteer" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                        <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: v.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: '#1e293b', fontSize: '1rem', flexShrink: 0 }}>{v.initials}</div>
-                                        <div>
-                                            <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{v.name}</div>
-                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>{v.role}</div>
-                                        </div>
-                                    </div>
-                                    <div className="col-contact">
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>
-                                                <Phone size={14} color="#F97316" /> {v.phone}
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>
-                                                <Mail size={14} color="#F97316" /> {v.email}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="col-sent">
-                                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#64748b' }}>{v.sentOn}</span>
-                                    </div>
-                                    <div className="col-status">
-                                        <span style={{
-                                            padding: '0.4rem 0.85rem',
-                                            borderRadius: '10px',
-                                            fontSize: '0.65rem',
-                                            fontWeight: 800,
-                                            background: '#f0f9ff',
-                                            color: '#0ea5e9',
-                                            letterSpacing: '0.05em',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '0.4rem'
-                                        }}>
-                                            {v.status}
-                                        </span>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            currentItems.map((v, i) => (
-                                <div key={v.id} style={{
-                                    display: 'grid', gridTemplateColumns: '2.5fr 1.5fr 1fr',
-                                    padding: '1rem 2rem',
-                                    borderBottom: i === currentItems.length - 1 ? 'none' : '1.5px solid #f8fafc',
-                                    alignItems: 'center',
-                                    transition: 'all 0.2s'
-                                }} className="volunteer-row pending-row">
-                                    <div className="col-volunteer" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                        <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: v.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, color: v.color, fontSize: '1rem', flexShrink: 0 }}>{v.initials}</div>
-                                        <div>
-                                            <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{v.name}</div>
-                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600 }}>{v.interest} • {v.location}</div>
-                                        </div>
-                                    </div>
-                                    <div className="col-contact">
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>
-                                                <Phone size={14} color="#F97316" /> {v.phone}
-                                            </div>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 600 }}>
-                                                <Mail size={14} color="#F97316" /> {v.email}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="col-status" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                                        {v.decision === 'approved' ? (
-                                            <div style={{
-                                                padding: '0.5rem 1.25rem',
-                                                borderRadius: '12px',
-                                                background: '#f0fdf4',
-                                                color: '#10b981',
-                                                fontSize: '0.7rem',
-                                                fontWeight: 800,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.4rem',
-                                                border: '1.5px solid #dcfce7'
-                                            }}>
-                                                <CheckCircle2 size={16} /> APPROVED
-                                            </div>
-                                        ) : v.decision === 'rejected' ? (
-                                            <div style={{
-                                                padding: '0.5rem 1.25rem',
-                                                borderRadius: '12px',
-                                                background: '#fef2f2',
-                                                color: '#ef4444',
-                                                fontSize: '0.7rem',
-                                                fontWeight: 800,
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.4rem',
-                                                border: '1.5px solid #fee2e2'
-                                            }}>
-                                                <X size={16} /> REJECTED
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <button style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.4rem',
-                                                    padding: '0.5rem 1rem',
-                                                    borderRadius: '12px',
-                                                    border: '1.5px solid #fee2e2',
-                                                    background: '#fef2f2',
-                                                    color: '#ef4444',
-                                                    fontSize: '0.7rem',
-                                                    fontWeight: 800,
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.2s'
-                                                }}
-                                                    onClick={() => handleDecision(v.id, 'rejected')}
-                                                    onMouseOver={(e) => {
-                                                        e.currentTarget.style.background = '#fee2e2';
-                                                        e.currentTarget.style.transform = 'translateY(-1px)';
-                                                    }}
-                                                    onMouseOut={(e) => {
-                                                        e.currentTarget.style.background = '#fef2f2';
-                                                        e.currentTarget.style.transform = 'translateY(0)';
-                                                    }}
-                                                    className="reject-btn">
-                                                    <X size={14} strokeWidth={2.5} />
-                                                    <span className="btn-text">REJECT</span>
-                                                </button>
-                                                <button style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.4rem',
-                                                    padding: '0.5rem 1rem',
-                                                    borderRadius: '12px',
-                                                    border: 'none',
-                                                    background: '#008000',
-                                                    color: 'white',
-                                                    fontSize: '0.7rem',
-                                                    fontWeight: 800,
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.2s',
-                                                    boxShadow: '0 4px 12px rgba(0, 128, 0, 0.2)'
-                                                }}
-                                                    onClick={() => handleDecision(v.id, 'approved')}
-                                                    onMouseOver={(e) => {
-                                                        e.currentTarget.style.background = '#006400';
-                                                        e.currentTarget.style.transform = 'translateY(-1px)';
-                                                        e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 128, 0, 0.3)';
-                                                    }}
-                                                    onMouseOut={(e) => {
-                                                        e.currentTarget.style.background = '#008000';
-                                                        e.currentTarget.style.transform = 'translateY(0)';
-                                                        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 128, 0, 0.2)';
-                                                    }}
-                                                    className="approve-btn">
-                                                    <CheckCircle2 size={14} strokeWidth={2.5} />
-                                                    <span className="btn-text">APPROVE</span>
-                                                </button>
-                                            </>
-                                        )}
-                                    </div>
-                                </div>
-                            ))
                         )}
                     </div>
 
                     <Pagination
                         currentPage={currentPage}
                         itemsPerPage={itemsPerPage}
-                        totalEntries={currentListData.length}
+                        totalEntries={filteredActive.length}
                         onPageChange={setCurrentPage}
                         onItemsPerPageChange={(val) => {
                             setItemsPerPage(val);
@@ -723,265 +457,398 @@ export function Volunteers() {
                 }
                 `
             }} />
-            {/* Add Volunteer Sidebar */}
-            {/* Add Volunteer Sidebar */}
-            <div className={`volunteer-drawer ${isAddVolunteerOpen ? 'open' : ''}`} style={{
-                backgroundColor: 'white',
-                boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
-                zIndex: 50,
-                display: 'flex',
-                flexDirection: 'column'
-            }}>
-                {/* Drawer Header */}
-                <div style={{
-                    padding: '24px 28px',
-                    borderBottom: '1px solid #f3f4f6',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start'
-                }}>
-                    <div>
-                        <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#111827', margin: 0 }}>Add Volunteer</h2>
-                        <p style={{ fontSize: '13px', color: '#6b7280', margin: '4px 0 0 0' }}>Invite a new volunteer to join the force</p>
-                    </div>
-                    <button
-                        onClick={() => setIsAddVolunteerOpen(false)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}
-                    >
-                        <X size={20} />
-                    </button>
-                </div>
-
-                {/* Drawer Body */}
-                <div style={{ padding: '28px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
-
-                    {/* Full Name */}
-                    <div style={{ position: 'relative' }}>
-                        <label style={{
-                            position: 'absolute',
-                            left: '14px',
-                            top: (focusedFields.name || volunteerForm.name) ? '-8px' : '15px',
-                            fontSize: (focusedFields.name || volunteerForm.name) ? '12px' : '14px',
-                            color: focusedFields.name ? '#f97316' : '#9ca3af',
-                            backgroundColor: 'white',
-                            padding: '0 5px',
-                            transition: 'all 0.2s ease',
-                            pointerEvents: 'none',
-                            fontWeight: (focusedFields.name || volunteerForm.name) ? '700' : '500',
-                            zIndex: 1
-                        }}>
-                            Full Name
-                        </label>
-                        <input
-                            type="text"
-                            value={volunteerForm.name}
-                            onChange={(e) => setVolunteerForm({ ...volunteerForm, name: e.target.value })}
-                            onFocus={() => handleFocus('name')}
-                            onBlur={() => handleBlur('name')}
-                            style={{
-                                ...inputStyle,
-                                borderColor: focusedFields.name ? '#f97316' : '#e5e7eb',
-                                borderWidth: focusedFields.name ? '2px' : '1px',
-                                padding: focusedFields.name ? '13px 17px' : '14px 18px'
-                            }}
-                        />
-                    </div>
-
-                    {/* Email Address */}
-                    <div style={{ position: 'relative' }}>
-                        <label style={{
-                            position: 'absolute',
-                            left: '14px',
-                            top: (focusedFields.email || volunteerForm.email) ? '-8px' : '15px',
-                            fontSize: (focusedFields.email || volunteerForm.email) ? '12px' : '14px',
-                            color: focusedFields.email ? '#f97316' : '#9ca3af',
-                            backgroundColor: 'white',
-                            padding: '0 5px',
-                            transition: 'all 0.2s ease',
-                            pointerEvents: 'none',
-                            fontWeight: (focusedFields.email || volunteerForm.email) ? '700' : '500',
-                            zIndex: 1
-                        }}>
-                            Email Address
-                        </label>
-                        <input
-                            type="email"
-                            value={volunteerForm.email}
-                            onChange={(e) => setVolunteerForm({ ...volunteerForm, email: e.target.value })}
-                            onFocus={() => handleFocus('email')}
-                            onBlur={() => handleBlur('email')}
-                            style={{
-                                ...inputStyle,
-                                borderColor: focusedFields.email ? '#f97316' : '#e5e7eb',
-                                borderWidth: focusedFields.email ? '2px' : '1px',
-                                padding: focusedFields.email ? '13px 17px' : '14px 18px'
-                            }}
-                        />
-                    </div>
-
-                    {/* Phone Number */}
-                    <div style={{ position: 'relative' }}>
-                        <label style={{
-                            position: 'absolute',
-                            left: '14px',
-                            top: (focusedFields.phone || volunteerForm.phone) ? '-8px' : '15px',
-                            fontSize: (focusedFields.phone || volunteerForm.phone) ? '12px' : '14px',
-                            color: focusedFields.phone ? '#f97316' : '#9ca3af',
-                            backgroundColor: 'white',
-                            padding: '0 5px',
-                            transition: 'all 0.2s ease',
-                            pointerEvents: 'none',
-                            fontWeight: (focusedFields.phone || volunteerForm.phone) ? '700' : '500',
-                            zIndex: 1
-                        }}>
-                            Phone Number
-                        </label>
-                        <input
-                            type="tel"
-                            value={volunteerForm.phone}
-                            onChange={(e) => setVolunteerForm({ ...volunteerForm, phone: e.target.value })}
-                            onFocus={() => handleFocus('phone')}
-                            onBlur={() => handleBlur('phone')}
-                            style={{
-                                ...inputStyle,
-                                borderColor: focusedFields.phone ? '#f97316' : '#e5e7eb',
-                                borderWidth: focusedFields.phone ? '2px' : '1px',
-                                padding: focusedFields.phone ? '13px 17px' : '14px 18px'
-                            }}
-                        />
-                    </div>
-
-                    {/* Area / Location */}
-                    <div style={{ position: 'relative' }}>
-                        <label style={{
-                            position: 'absolute',
-                            left: '14px',
-                            top: (focusedFields.area || volunteerForm.area) ? '-8px' : '15px',
-                            fontSize: (focusedFields.area || volunteerForm.area) ? '12px' : '14px',
-                            color: focusedFields.area ? '#f97316' : '#9ca3af',
-                            backgroundColor: 'white',
-                            padding: '0 5px',
-                            transition: 'all 0.2s ease',
-                            pointerEvents: 'none',
-                            fontWeight: (focusedFields.area || volunteerForm.area) ? '700' : '500',
-                            zIndex: 1
-                        }}>
-                            Area / Location
-                        </label>
-                        <input
-                            type="text"
-                            value={volunteerForm.area}
-                            onChange={(e) => setVolunteerForm({ ...volunteerForm, area: e.target.value })}
-                            onFocus={() => handleFocus('area')}
-                            onBlur={() => handleBlur('area')}
-                            style={{
-                                ...inputStyle,
-                                borderColor: focusedFields.area ? '#f97316' : '#e5e7eb',
-                                borderWidth: focusedFields.area ? '2px' : '1px',
-                                padding: focusedFields.area ? '13px 17px' : '14px 18px'
-                            }}
-                        />
-                    </div>
-
-                    {/* Specialized In */}
-                    <div>
-                        <label style={{
-                            fontSize: '11px',
-                            fontWeight: '800',
-                            color: '#9ca3af',
-                            letterSpacing: '0.05em',
-                            marginBottom: '10px',
-                            display: 'block'
-                        }}>SPECIALIZED IN</label>
-                        <Dropdown
-                            options={['Food Serving', 'Medical', 'Emergency', 'Others']}
-                            value={volunteerForm.specialization}
-                            onChange={(val) => setVolunteerForm({ ...volunteerForm, specialization: val })}
-                            placeholder="Select Specialization"
-                        />
-                    </div>
-
-                    {/* Info Alert */}
+            {/* Overlay and Side Panel via Portal */}
+            {isAddVolunteerOpen && createPortal(
+                <>
                     <div style={{
-                        backgroundColor: '#f8fafc',
-                        padding: '16px',
-                        borderRadius: '12px',
+                        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                        background: 'rgba(0,0,0,0.3)', zIndex: 9998
+                    }} onClick={() => setIsAddVolunteerOpen(false)} />
+
+                    <div className={`volunteer-drawer ${isAddVolunteerOpen ? 'open' : ''}`} style={{
+                        backgroundColor: 'white',
+                        boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
+                        zIndex: 9999,
                         display: 'flex',
-                        gap: '12px',
-                        alignItems: 'flex-start'
-                    }}>
-                        <HelpCircle size={16} color="#94a3b8" style={{ marginTop: '2px' }} />
-                        <p style={{ fontSize: '12px', color: '#64748b', margin: 0, lineHeight: '1.5', fontWeight: '500' }}>
-                            Volunteers will receive an email invitation to set up their password and complete their profile.
-                        </p>
-                    </div>
-
-                </div>
-
-                {/* Drawer Footer */}
-                <div style={{
-                    padding: '24px 28px',
-                    borderTop: '1px solid #f3f4f6',
-                    display: 'flex',
-                    gap: '12px'
-                }}>
-                    <button
-                        onClick={() => setIsAddVolunteerOpen(false)}
-                        style={{
-                            flex: 1,
-                            padding: '12px',
-                            borderRadius: '10px',
-                            border: '1px solid #e5e7eb',
-                            backgroundColor: 'white',
-                            color: '#111827',
-                            fontSize: '14px',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Discard
-                    </button>
-                    <button
-                        onClick={() => {
-                            console.log("Sending request to:", volunteerForm);
-                            setIsAddVolunteerOpen(false);
-                        }}
-                        style={{
-                            flex: 1.5,
-                            padding: '12px',
-                            borderRadius: '10px',
-                            border: 'none',
-                            backgroundColor: '#f97316',
-                            color: 'white',
-                            fontSize: '14px',
-                            fontWeight: '700',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Send Request <ArrowUpRight size={16} />
-                    </button>
-                </div>
-            </div>
-
-            {/* Backdrop */}
-            {isAddVolunteerOpen && (
-                <div
-                    onClick={() => setIsAddVolunteerOpen(false)}
-                    style={{
+                        flexDirection: 'column',
+                        borderTopLeftRadius: '24px',
+                        borderBottomLeftRadius: '24px',
                         position: 'fixed',
-                        top: 0, left: 0, right: 0, bottom: 0,
-                        background: 'rgba(0,0,0,0.2)',
-                        zIndex: 40,
-                        backdropFilter: 'blur(2px)',
-                        transition: 'all 0.3s'
-                    }}
-                />
+                        top: 0,
+                        right: 0,
+                        width: '500px',
+                        height: '100vh',
+                        transition: 'transform 0.3s ease-in-out',
+                        transform: isAddVolunteerOpen ? 'translateX(0)' : 'translateX(100%)'
+                    }}>
+                        {/* Drawer Header */}
+                        <div style={{
+                            padding: '24px 28px',
+                            borderBottom: '1px solid #f3f4f6',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'flex-start'
+                        }}>
+                            <div>
+                                <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#111827', margin: 0 }}>Add Volunteer</h2>
+                                <p style={{ fontSize: '13px', color: '#6b7280', margin: '4px 0 0 0' }}>Enter verify details to register new volunteer</p>
+                            </div>
+                            <button
+                                onClick={() => setIsAddVolunteerOpen(false)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div style={{ padding: '28px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+
+                            {/* Full Name */}
+                            <div style={{ position: 'relative' }}>
+                                <label style={{
+                                    position: 'absolute',
+                                    left: '14px',
+                                    top: (focusedFields.name || volunteerForm.name) ? '-8px' : '15px',
+                                    fontSize: (focusedFields.name || volunteerForm.name) ? '12px' : '14px',
+                                    color: focusedFields.name ? '#f97316' : '#9ca3af',
+                                    backgroundColor: 'white',
+                                    padding: '0 5px',
+                                    transition: 'all 0.2s ease',
+                                    pointerEvents: 'none',
+                                    fontWeight: (focusedFields.name || volunteerForm.name) ? '700' : '500',
+                                    zIndex: 1
+                                }}>
+                                    Full Name <span style={{ color: '#f97316' }}>*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={volunteerForm.name}
+                                    onChange={(e) => setVolunteerForm({ ...volunteerForm, name: e.target.value })}
+                                    onFocus={() => handleFocus('name')}
+                                    onBlur={() => handleBlur('name')}
+                                    style={{
+                                        ...inputStyle,
+                                        borderColor: focusedFields.name ? '#f97316' : '#e5e7eb',
+                                        borderWidth: focusedFields.name ? '2px' : '1px',
+                                        padding: focusedFields.name ? '13px 17px' : '14px 18px'
+                                    }}
+                                />
+                            </div>
+
+                            {/* Email Address */}
+                            <div style={{ position: 'relative' }}>
+                                <label style={{
+                                    position: 'absolute',
+                                    left: '14px',
+                                    top: (focusedFields.email || volunteerForm.email) ? '-8px' : '15px',
+                                    fontSize: (focusedFields.email || volunteerForm.email) ? '12px' : '14px',
+                                    color: focusedFields.email ? '#f97316' : '#9ca3af',
+                                    backgroundColor: 'white',
+                                    padding: '0 5px',
+                                    transition: 'all 0.2s ease',
+                                    pointerEvents: 'none',
+                                    fontWeight: (focusedFields.email || volunteerForm.email) ? '700' : '500',
+                                    zIndex: 1
+                                }}>
+                                    Email Address <span style={{ color: '#f97316' }}>*</span>
+                                </label>
+                                <input
+                                    type="email"
+                                    value={volunteerForm.email}
+                                    onChange={(e) => setVolunteerForm({ ...volunteerForm, email: e.target.value })}
+                                    onFocus={() => handleFocus('email')}
+                                    onBlur={() => handleBlur('email')}
+                                    style={{
+                                        ...inputStyle,
+                                        borderColor: focusedFields.email ? '#f97316' : '#e5e7eb',
+                                        borderWidth: focusedFields.email ? '2px' : '1px',
+                                        padding: focusedFields.email ? '13px 17px' : '14px 18px'
+                                    }}
+                                />
+                            </div>
+
+                            {/* Phone Number */}
+                            <div style={{ position: 'relative' }}>
+                                <label style={{
+                                    position: 'absolute',
+                                    left: '14px',
+                                    top: (focusedFields.phone || volunteerForm.phone) ? '-8px' : '15px',
+                                    fontSize: (focusedFields.phone || volunteerForm.phone) ? '12px' : '14px',
+                                    color: focusedFields.phone ? '#f97316' : '#9ca3af',
+                                    backgroundColor: 'white',
+                                    padding: '0 5px',
+                                    transition: 'all 0.2s ease',
+                                    pointerEvents: 'none',
+                                    fontWeight: (focusedFields.phone || volunteerForm.phone) ? '700' : '500',
+                                    zIndex: 1
+                                }}>
+                                    Phone Number <span style={{ color: '#f97316' }}>*</span>
+                                </label>
+                                <input
+                                    type="tel"
+                                    value={volunteerForm.phone}
+                                    onChange={(e) => setVolunteerForm({ ...volunteerForm, phone: e.target.value })}
+                                    onFocus={() => handleFocus('phone')}
+                                    onBlur={() => handleBlur('phone')}
+                                    style={{
+                                        ...inputStyle,
+                                        borderColor: focusedFields.phone ? '#f97316' : '#e5e7eb',
+                                        borderWidth: focusedFields.phone ? '2px' : '1px',
+                                        padding: focusedFields.phone ? '13px 17px' : '14px 18px'
+                                    }}
+                                />
+                            </div>
+
+                            {/* Area / Location */}
+                            <div style={{ position: 'relative' }}>
+                                <label style={{
+                                    position: 'absolute',
+                                    left: '14px',
+                                    top: (focusedFields.area || volunteerForm.area) ? '-8px' : '15px',
+                                    fontSize: (focusedFields.area || volunteerForm.area) ? '12px' : '14px',
+                                    color: focusedFields.area ? '#f97316' : '#9ca3af',
+                                    backgroundColor: 'white',
+                                    padding: '0 5px',
+                                    transition: 'all 0.2s ease',
+                                    pointerEvents: 'none',
+                                    fontWeight: (focusedFields.area || volunteerForm.area) ? '700' : '500',
+                                    zIndex: 1
+                                }}>
+                                    Area / Location
+                                </label>
+                                <input
+                                    type="text"
+                                    value={volunteerForm.area}
+                                    onChange={(e) => setVolunteerForm({ ...volunteerForm, area: e.target.value })}
+                                    onFocus={() => handleFocus('area')}
+                                    onBlur={() => handleBlur('area')}
+                                    style={{
+                                        ...inputStyle,
+                                        borderColor: focusedFields.area ? '#f97316' : '#e5e7eb',
+                                        borderWidth: focusedFields.area ? '2px' : '1px',
+                                        padding: focusedFields.area ? '13px 17px' : '14px 18px'
+                                    }}
+                                />
+                            </div>
+
+                            {/* Specialized In */}
+                            <div>
+                                <label style={{
+                                    fontSize: '11px',
+                                    fontWeight: '800',
+                                    color: '#9ca3af',
+                                    letterSpacing: '0.05em',
+                                    marginBottom: '10px',
+                                    display: 'block'
+                                }}>SPECIALIZED IN</label>
+                                <Dropdown
+                                    options={['General', 'Food Serving', 'Medical', 'Emergency', 'Others']}
+                                    value={volunteerForm.specialization}
+                                    onChange={(val) => setVolunteerForm({ ...volunteerForm, specialization: val })}
+                                    placeholder="Select Specialization"
+                                />
+                            </div>
+
+                            {/* Info Alert */}
+                            <div style={{
+                                backgroundColor: '#f8fafc',
+                                padding: '16px',
+                                borderRadius: '12px',
+                                display: 'flex',
+                                gap: '12px',
+                                alignItems: 'flex-start'
+                            }}>
+                                <HelpCircle size={16} color="#94a3b8" style={{ marginTop: '2px' }} />
+                                <p style={{ fontSize: '12px', color: '#64748b', margin: 0, lineHeight: '1.5', fontWeight: '500' }}>
+                                    Manually add a volunteer to the database. They can reset their password later.
+                                </p>
+                            </div>
+
+                        </div>
+
+                        {/* Drawer Footer */}
+                        <div style={{
+                            padding: '24px 28px',
+                            borderTop: '1px solid #f3f4f6',
+                            display: 'flex',
+                            gap: '12px'
+                        }}>
+                            <button
+                                onClick={() => setIsAddVolunteerOpen(false)}
+                                style={{
+                                    flex: 1,
+                                    padding: '12px',
+                                    borderRadius: '10px',
+                                    border: '1px solid #e5e7eb',
+                                    backgroundColor: 'white',
+                                    color: '#111827',
+                                    fontSize: '14px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Discard
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        const { name, email, phone } = volunteerForm;
+                                        if (!name || !email || !phone) {
+                                            alert("Please fill in all fields (Name, Email, Phone).");
+                                            return;
+                                        }
+
+                                        // Basic Validation
+                                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                                        if (!emailRegex.test(email)) {
+                                            alert("Please enter a valid email address.");
+                                            return;
+                                        }
+
+                                        if (phone.length < 10) {
+                                            alert("Please enter a valid phone number (at least 10 digits).");
+                                            return;
+                                        }
+
+                                        let userId = null;
+                                        let isNewUser = false;
+
+                                        // 1. Search for existing user first to avoid unnecessary registration errors
+                                        try {
+                                            const usersRes = await fetch('/api/v1/users/?skip=0&limit=2000');
+                                            if (usersRes.ok) {
+                                                const users = await usersRes.json();
+                                                const normalizePhone = (p) => p ? String(p).replace(/\D/g, '') : '';
+                                                const targetEmail = email.toLowerCase().trim();
+                                                const targetPhone = normalizePhone(phone);
+
+                                                const existingUser = users.find(u => {
+                                                    const uEmail = (u.email || '').toLowerCase().trim();
+                                                    const uPhone = normalizePhone(u.phone || u.phoneNumber);
+                                                    return (uEmail && uEmail === targetEmail) || (uPhone && uPhone === targetPhone);
+                                                });
+
+                                                if (existingUser) {
+                                                    userId = existingUser.user_id || existingUser.id;
+                                                    console.log("Found existing user:", existingUser.name, userId);
+                                                }
+                                            }
+                                        } catch (err) {
+                                            console.warn("Error searching for user:", err);
+                                        }
+
+                                        // 2. If user not found, try to register
+                                        if (!userId) {
+                                            isNewUser = true;
+                                            const registerPayload = {
+                                                fullName: name,
+                                                email: email,
+                                                phoneNumber: phone,
+                                                password: `Vol1${Math.random().toString(36).slice(-8).toUpperCase()}!`,
+                                                role: "devotee",
+                                                emergency_phone: "",
+                                                deviceToken: ""
+                                            };
+
+                                            const registerResponse = await fetch('/api/auth/register', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify(registerPayload)
+                                            });
+
+                                            if (registerResponse.ok) {
+                                                const userData = await registerResponse.json();
+                                                userId = userData.user_id || userData.id;
+                                            } else {
+                                                const errorText = await registerResponse.text();
+                                                let errorMessage = errorText || 'User registration failed';
+                                                try {
+                                                    const errorData = JSON.parse(errorText);
+                                                    errorMessage = errorData.detail || errorData.message || errorMessage;
+                                                } catch (e) { }
+                                                throw new Error(errorMessage);
+                                            }
+                                        }
+
+                                        if (!userId) {
+                                            throw new Error('Could not obtain User ID for volunteer registration.');
+                                        }
+
+                                        // 3. Add as Volunteer
+                                        const volunteerPayload = {
+                                            user_id: userId,
+                                            skill: (volunteerForm.specialization || 'general').toLowerCase().replace(' ', '_'),
+                                            approved: false
+                                        };
+
+                                        const volunteerResponse = await fetch('/api/v1/volunteers/', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify(volunteerPayload)
+                                        });
+
+                                        if (!volunteerResponse.ok) {
+                                            const errorData = await volunteerResponse.json();
+                                            if (volunteerResponse.status === 400 && errorData.detail?.includes("already")) {
+                                                alert("This user is already a volunteer!");
+                                            } else {
+                                                throw new Error(errorData.detail || 'Failed to add volunteer record.');
+                                            }
+                                        } else {
+                                            // Success! Update local state
+                                            const newVolunteerRes = await volunteerResponse.json();
+
+                                            // Add to local list immediately
+                                            const newEntry = {
+                                                id: newVolunteerRes.id || newVolunteerRes.volunteer_id || Math.random(),
+                                                name: name,
+                                                event: "Temple Service",
+                                                role: volunteerForm.specialization,
+                                                shift: "Active",
+                                                status: "online",
+                                                onDuty: false,
+                                                initials: (name || 'V').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+                                                color: '#34d399',
+                                                phone: phone,
+                                                email: email
+                                            };
+
+                                            setActiveVolunteersData(prev => [newEntry, ...prev]);
+
+                                            alert('Volunteer added successfully!');
+                                            setIsAddVolunteerOpen(false);
+                                            setVolunteerForm({ name: '', email: '', phone: '', area: '', specialization: 'General' });
+                                        }
+
+                                    } catch (error) {
+                                        console.error("Error adding volunteer:", error);
+                                        alert(`Failed to add volunteer: ${error.message}`);
+                                    }
+                                }}
+                                style={{
+                                    flex: 1.5,
+                                    padding: '12px',
+                                    borderRadius: '10px',
+                                    border: 'none',
+                                    backgroundColor: '#f97316',
+                                    color: 'white',
+                                    fontSize: '14px',
+                                    fontWeight: '700',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '8px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Add Volunteer <ArrowUpRight size={16} />
+                            </button>
+                        </div>
+                    </div>
+                </>,
+                document.body
             )}
-        </div >
+        </div>
     );
 }
 

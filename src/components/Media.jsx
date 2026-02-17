@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Music, Search, Plus, Trash2, Youtube, Play, X, ChevronDown, Calendar, Youtube as YoutubeIcon, Layers
 } from 'lucide-react';
@@ -9,13 +10,21 @@ export function Media() {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(5);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // Form State
+    // Form State - matching API requirements
     const [title, setTitle] = useState('');
-    const [category, setCategory] = useState('Song');
+    const [description, setDescription] = useState('');
+    const [category, setCategory] = useState('mantra'); // API uses 'mantra' as media_type
     const [youtubeUrl, setYoutubeUrl] = useState('');
+    const [thumbnailUrl, setThumbnailUrl] = useState('');
+    const [duration, setDuration] = useState('');
     const [isTitleFocused, setIsTitleFocused] = useState(false);
+    const [isDescriptionFocused, setIsDescriptionFocused] = useState(false);
     const [isUrlFocused, setIsUrlFocused] = useState(false);
+    const [isThumbnailFocused, setIsThumbnailFocused] = useState(false);
+    const [isDurationFocused, setIsDurationFocused] = useState(false);
+
 
     const getYoutubeVideoId = (url) => {
         const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
@@ -23,13 +32,7 @@ export function Media() {
         return (match && match[2].length === 11) ? match[2] : null;
     };
 
-    const [mediaData, setMediaData] = useState([
-        { id: 1, title: "Siva Siva Om", category: "Song", url: "https://www.youtube.com/watch?v=example1", dateAdded: "Oct 24, 2023", color: "#E3F2FD" },
-        { id: 2, title: "Temple Morning Chants", category: "Chant", url: "https://www.youtube.com/watch?v=example2", dateAdded: "Oct 22, 2023", color: "#FFF3E0" },
-        { id: 3, title: "Evening Aarathi Hymn", category: "Song", url: "https://www.youtube.com/watch?v=example3", dateAdded: "Oct 20, 2023", color: "#E8F5E9" },
-        { id: 4, title: "Om Namah Shivaya Japa", category: "Chant", url: "https://www.youtube.com/watch?v=example4", dateAdded: "Oct 18, 2023", color: "#F3E5F5" },
-        { id: 5, title: "Ganesha Pancharatnam", category: "Song", url: "https://www.youtube.com/watch?v=example5", dateAdded: "Oct 15, 2023", color: "#FCE4EC" },
-    ]);
+    const [mediaData, setMediaData] = useState([]);
 
     React.useEffect(() => {
         setCurrentPage(1);
@@ -50,24 +53,70 @@ export function Media() {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const currentItems = filteredMedia.slice(startIndex, startIndex + itemsPerPage);
 
-    const handleAddMedia = () => {
+    const handleAddMedia = async () => {
+        // Validation
         if (!title || !youtubeUrl) {
-            alert("Please fill in all fields.");
+            alert("Please fill in at least the title and URL fields.");
             return;
         }
-        const newEntry = {
-            id: Date.now(),
-            title,
-            category,
-            url: youtubeUrl,
-            dateAdded: new Date().toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-            color: category === 'Song' ? '#E3F2FD' : '#FFF3E0'
-        };
-        setMediaData([newEntry, ...mediaData]);
-        setIsDrawerOpen(false);
-        setTitle('');
-        setYoutubeUrl('');
-        setCategory('Song');
+
+        setIsSubmitting(true);
+
+        try {
+            // Prepare API payload
+            const payload = {
+                title,
+                description: description || '', // Optional field
+                media_type: category, // 'mantra' or other types
+                url: youtubeUrl,
+                thumbnail_url: thumbnailUrl || '', // Optional field
+                duration: duration || '' // Optional field
+            };
+
+            // Make API call
+            const response = await fetch('/api/media/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Failed to add media');
+            }
+
+            const newMedia = await response.json();
+
+            // Update local state with the new media from API response
+            const newEntry = {
+                id: newMedia.media_id,
+                title: newMedia.title,
+                category: newMedia.media_type,
+                url: newMedia.url,
+                dateAdded: new Date(newMedia.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+                color: newMedia.media_type === 'mantra' ? '#E3F2FD' : '#FFF3E0'
+            };
+
+            setMediaData([newEntry, ...mediaData]);
+
+            // Reset form and close drawer
+            setIsDrawerOpen(false);
+            setTitle('');
+            setDescription('');
+            setYoutubeUrl('');
+            setThumbnailUrl('');
+            setDuration('');
+            setCategory('mantra');
+
+            alert('Media added successfully!');
+        } catch (error) {
+            console.error('Error adding media:', error);
+            alert(`Error: ${error.message}`);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleDelete = (id) => {
@@ -86,7 +135,7 @@ export function Media() {
             overflow: 'hidden'
         }}>
             {/* Overlay */}
-            {isDrawerOpen && (
+            {isDrawerOpen && createPortal(
                 <div
                     onClick={() => setIsDrawerOpen(false)}
                     style={{
@@ -95,12 +144,12 @@ export function Media() {
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        backgroundColor: 'rgba(0,0,0,0.1)',
-                        backdropFilter: 'blur(2px)',
-                        zIndex: 40,
+                        backgroundColor: 'rgba(0,0,0,0.3)',
+                        zIndex: 9998,
                         transition: 'all 0.3s'
                     }}
-                />
+                />,
+                document.body
             )}
 
             <div className="media-page" style={{
@@ -247,66 +296,108 @@ export function Media() {
                         scrollbarWidth: 'thin',
                         scrollbarColor: '#f1f5f9 transparent'
                     }}>
-                        {currentItems.map((item, idx) => (
-                            <div key={item.id} style={{
-                                display: 'grid',
-                                gridTemplateColumns: '2.5fr 1.5fr 1fr 80px',
-                                padding: '1rem 2rem',
-                                borderBottom: idx === currentItems.length - 1 ? 'none' : '1.5px solid #f8fafc',
+                        {currentItems.length === 0 ? (
+                            <div style={{
+                                display: 'flex',
+                                flexDirection: 'column',
                                 alignItems: 'center',
-                                transition: 'all 0.2s'
-                            }} className="media-row">
-                                <div className="col-media" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    <div style={{
-                                        width: '48px',
-                                        height: '48px',
-                                        borderRadius: '14px',
-                                        background: item.color,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        flexShrink: 0
-                                    }}>
-                                        {item.category === 'Song' ? <Music size={20} color="#3b82f6" /> : <Layers size={20} color="#f97316" />}
-                                    </div>
-                                    <div>
-                                        <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{item.title}</div>
-                                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                            <Youtube size={12} color="#ef4444" /> {item.url.length > 30 ? item.url.substring(0, 30) + "..." : item.url}
+                                justifyContent: 'center',
+                                padding: '4rem 2rem',
+                                gap: '1rem'
+                            }}>
+                                <div style={{
+                                    width: '80px',
+                                    height: '80px',
+                                    borderRadius: '20px',
+                                    background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    marginBottom: '0.5rem'
+                                }}>
+                                    <Music size={36} color="#f97316" />
+                                </div>
+                                <h3 style={{
+                                    fontSize: '1.1rem',
+                                    fontWeight: 700,
+                                    color: '#1e293b',
+                                    margin: 0
+                                }}>No media found</h3>
+                                <p style={{
+                                    fontSize: '0.9rem',
+                                    color: '#64748b',
+                                    textAlign: 'center',
+                                    margin: 0,
+                                    maxWidth: '400px'
+                                }}>
+                                    {searchTerm
+                                        ? `No media matching "${searchTerm}". Try a different search term.`
+                                        : 'Get started by adding your first song or chant to the library.'
+                                    }
+                                </p>
+                            </div>
+                        ) : (
+                            currentItems.map((item, idx) => (
+                                <div key={item.id} style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: '2.5fr 1.5fr 1fr 80px',
+                                    padding: '1rem 2rem',
+                                    borderBottom: idx === currentItems.length - 1 ? 'none' : '1.5px solid #f8fafc',
+                                    alignItems: 'center',
+                                    transition: 'all 0.2s'
+                                }} className="media-row">
+                                    <div className="col-media" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                        <div style={{
+                                            width: '48px',
+                                            height: '48px',
+                                            borderRadius: '14px',
+                                            background: item.color,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            flexShrink: 0
+                                        }}>
+                                            {item.category === 'Song' ? <Music size={20} color="#3b82f6" /> : <Layers size={20} color="#f97316" />}
+                                        </div>
+                                        <div>
+                                            <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{item.title}</div>
+                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                <Youtube size={12} color="#ef4444" /> {item.url.length > 30 ? item.url.substring(0, 30) + "..." : item.url}
+                                            </div>
                                         </div>
                                     </div>
+                                    <div className="col-category">
+                                        <span style={{
+                                            padding: '0.4rem 0.85rem',
+                                            borderRadius: '10px',
+                                            fontSize: '0.7rem',
+                                            fontWeight: 800,
+                                            background: item.category === 'Song' ? '#eff6ff' : '#fff7ed',
+                                            color: item.category === 'Song' ? '#3b82f6' : '#f97316',
+                                            letterSpacing: '0.02em',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.4rem'
+                                        }}>
+                                            {item.category}
+                                        </span>
+                                    </div>
+                                    <div className="col-date" style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>
+                                        {item.dateAdded}
+                                    </div>
+                                    <div className="col-actions" style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                        <button
+                                            onClick={() => handleDelete(item.id)}
+                                            style={{ background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer', transition: 'color 0.2s' }}
+                                            onMouseEnter={(e) => e.target.style.color = '#ef4444'}
+                                            onMouseLeave={(e) => e.target.style.color = '#cbd5e1'}
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="col-category">
-                                    <span style={{
-                                        padding: '0.4rem 0.85rem',
-                                        borderRadius: '10px',
-                                        fontSize: '0.7rem',
-                                        fontWeight: 800,
-                                        background: item.category === 'Song' ? '#eff6ff' : '#fff7ed',
-                                        color: item.category === 'Song' ? '#3b82f6' : '#f97316',
-                                        letterSpacing: '0.02em',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '0.4rem'
-                                    }}>
-                                        {item.category}
-                                    </span>
-                                </div>
-                                <div className="col-date" style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>
-                                    {item.dateAdded}
-                                </div>
-                                <div className="col-actions" style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                    <button
-                                        onClick={() => handleDelete(item.id)}
-                                        style={{ background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer', transition: 'color 0.2s' }}
-                                        onMouseEnter={(e) => e.target.style.color = '#ef4444'}
-                                        onMouseLeave={(e) => e.target.style.color = '#cbd5e1'}
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            ))
+                        )}
                     </div>
 
                     <Pagination
@@ -323,226 +414,339 @@ export function Media() {
             </div>
 
             {/* Create New Media Drawer */}
-            <div className={`media-drawer ${isDrawerOpen ? 'open' : ''}`} style={{
-                backgroundColor: 'white',
-                boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
-                zIndex: 50,
-                display: 'flex',
-                flexDirection: 'column'
-            }}>
-                {/* Drawer Header */}
-                <div style={{
-                    padding: '24px 28px',
-                    borderBottom: '1px solid #f3f4f6',
+            {createPortal(
+                <div className={`media-drawer ${isDrawerOpen ? 'open' : ''}`} style={{
+                    backgroundColor: 'white',
+                    boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
+                    zIndex: 9999,
                     display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start'
+                    flexDirection: 'column',
+                    borderTopLeftRadius: '24px',
+                    borderBottomLeftRadius: '24px',
+                    position: 'fixed',
+                    top: 0,
+                    right: 0,
+                    width: '500px',
+                    height: '100vh',
+                    transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transform: isDrawerOpen ? 'translateX(0)' : 'translateX(100%)'
                 }}>
-                    <div>
-                        <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#111827', margin: 0 }}>Add New Media</h2>
-                        <p style={{ fontSize: '13px', color: '#6b7280', margin: '4px 0 0 0' }}>Upload a new song or chant to the spiritual library</p>
-                    </div>
-                    <button
-                        onClick={() => setIsDrawerOpen(false)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}
-                    >
-                        <X size={20} />
-                    </button>
-                </div>
-
-                {/* Drawer Body */}
-                <div style={{ padding: '28px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
-                    {/* Title Input */}
-                    <div style={{ position: 'relative' }}>
-                        <label style={{
-                            position: 'absolute',
-                            left: '14px',
-                            top: (isTitleFocused || title) ? '-8px' : '15px',
-                            fontSize: (isTitleFocused || title) ? '12px' : '14px',
-                            color: isTitleFocused ? '#f97316' : '#9ca3af',
-                            backgroundColor: 'white',
-                            padding: '0 5px',
-                            transition: 'all 0.2s ease',
-                            pointerEvents: 'none',
-                            fontWeight: (isTitleFocused || title) ? '700' : '500',
-                            zIndex: 1
-                        }}>
-                            Title of Song
-                        </label>
-                        <input
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            onFocus={() => setIsTitleFocused(true)}
-                            onBlur={() => setIsTitleFocused(false)}
-                            style={{
-                                ...inputStyle,
-                                borderColor: isTitleFocused ? '#f97316' : '#e5e7eb',
-                                borderWidth: isTitleFocused ? '2px' : '1px',
-                                padding: isTitleFocused ? '13px 17px' : '14px 18px'
-                            }}
-                        />
-                    </div>
-
-                    {/* Category Selection */}
-                    <div>
-                        <label style={labelStyle}>CATEGORY</label>
-                        <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
-                            <button
-                                onClick={() => setCategory('Song')}
-                                style={category === 'Song' ? selectedOptionStyle : optionStyle}
-                            >
-                                <Music size={16} /> Song
-                            </button>
-                            <button
-                                onClick={() => setCategory('Chant')}
-                                style={category === 'Chant' ? selectedOptionStyle : optionStyle}
-                            >
-                                <Layers size={16} /> Chant
-                            </button>
+                    {/* Drawer Header */}
+                    <div style={{
+                        padding: '24px 28px',
+                        borderBottom: '1px solid #f3f4f6',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start'
+                    }}>
+                        <div>
+                            <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#111827', margin: 0 }}>Add New Media</h2>
+                            <p style={{ fontSize: '13px', color: '#6b7280', margin: '4px 0 0 0' }}>Upload a new song or chant to the spiritual library</p>
                         </div>
+                        <button
+                            onClick={() => setIsDrawerOpen(false)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af' }}
+                        >
+                            <X size={20} />
+                        </button>
                     </div>
 
-                    {/* Youtube URL Input */}
-                    <div style={{ position: 'relative' }}>
-                        <label style={{
-                            position: 'absolute',
-                            left: '14px',
-                            top: (isUrlFocused || youtubeUrl) ? '-8px' : '15px',
-                            fontSize: (isUrlFocused || youtubeUrl) ? '12px' : '14px',
-                            color: isUrlFocused ? '#f97316' : '#9ca3af',
-                            backgroundColor: 'white',
-                            padding: '0 5px',
-                            transition: 'all 0.2s ease',
-                            pointerEvents: 'none',
-                            fontWeight: (isUrlFocused || youtubeUrl) ? '700' : '500',
-                            zIndex: 1
-                        }}>
-                            Youtube URL of Song or Chant
-                        </label>
-                        <input
-                            type="text"
-                            value={youtubeUrl}
-                            onChange={(e) => setYoutubeUrl(e.target.value)}
-                            onFocus={() => setIsUrlFocused(true)}
-                            onBlur={() => setIsUrlFocused(false)}
-                            style={{
-                                ...inputStyle,
-                                borderColor: isUrlFocused ? '#f97316' : '#e5e7eb',
-                                borderWidth: isUrlFocused ? '2px' : '1px',
-                                padding: isUrlFocused ? '13px 17px' : '14px 18px'
-                            }}
-                        />
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '8px' }}>
-                            <YoutubeIcon size={14} color="#ef4444" />
-                            <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: '600' }}>Valid YouTube Links only</span>
+                    {/* Drawer Body */}
+                    <div style={{ padding: '28px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+                        {/* Title Input */}
+                        <div style={{ position: 'relative' }}>
+                            <label style={{
+                                position: 'absolute',
+                                left: '14px',
+                                top: (isTitleFocused || title) ? '-8px' : '15px',
+                                fontSize: (isTitleFocused || title) ? '12px' : '14px',
+                                color: isTitleFocused ? '#f97316' : '#9ca3af',
+                                backgroundColor: 'white',
+                                padding: '0 5px',
+                                transition: 'all 0.2s ease',
+                                pointerEvents: 'none',
+                                fontWeight: (isTitleFocused || title) ? '700' : '500',
+                                zIndex: 1
+                            }}>
+                                Title *
+                            </label>
+                            <input
+                                type="text"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                onFocus={() => setIsTitleFocused(true)}
+                                onBlur={() => setIsTitleFocused(false)}
+                                style={{
+                                    ...inputStyle,
+                                    borderColor: isTitleFocused ? '#f97316' : '#e5e7eb',
+                                    borderWidth: isTitleFocused ? '2px' : '1px',
+                                    padding: isTitleFocused ? '13px 17px' : '14px 18px'
+                                }}
+                            />
                         </div>
-                    </div>
 
-                    {/* Youtube Preview */}
-                    {youtubeUrl && (
-                        <div style={{
-                            marginTop: '-12px',
-                            borderRadius: '16px',
-                            overflow: 'hidden',
-                            backgroundColor: '#f8fafc',
-                            border: '1.5px solid #f1f5f9',
-                            aspectRatio: '16/9',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            position: 'relative',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
-                        }}>
-                            {getYoutubeVideoId(youtubeUrl) ? (
-                                <iframe
-                                    width="100%"
-                                    height="100%"
-                                    src={`https://www.youtube.com/embed/${getYoutubeVideoId(youtubeUrl)}`}
-                                    title="YouTube video player"
-                                    frameBorder="0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                                    allowFullScreen
-                                    style={{ border: 'none' }}
-                                />
-                            ) : (
-                                <div style={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    padding: '24px'
-                                }}>
+                        {/* Description Input */}
+                        <div style={{ position: 'relative' }}>
+                            <label style={{
+                                position: 'absolute',
+                                left: '14px',
+                                top: (isDescriptionFocused || description) ? '-8px' : '15px',
+                                fontSize: (isDescriptionFocused || description) ? '12px' : '14px',
+                                color: isDescriptionFocused ? '#f97316' : '#9ca3af',
+                                backgroundColor: 'white',
+                                padding: '0 5px',
+                                transition: 'all 0.2s ease',
+                                pointerEvents: 'none',
+                                fontWeight: (isDescriptionFocused || description) ? '700' : '500',
+                                zIndex: 1
+                            }}>
+                                Description (Optional)
+                            </label>
+                            <textarea
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                onFocus={() => setIsDescriptionFocused(true)}
+                                onBlur={() => setIsDescriptionFocused(false)}
+                                rows={3}
+                                style={{
+                                    ...inputStyle,
+                                    borderColor: isDescriptionFocused ? '#f97316' : '#e5e7eb',
+                                    borderWidth: isDescriptionFocused ? '2px' : '1px',
+                                    padding: isDescriptionFocused ? '13px 17px' : '14px 18px',
+                                    resize: 'vertical',
+                                    fontFamily: 'inherit'
+                                }}
+                            />
+                        </div>
+
+                        {/* Category Selection */}
+                        <div>
+                            <label style={labelStyle}>MEDIA TYPE *</label>
+                            <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                                <button
+                                    onClick={() => setCategory('mantra')}
+                                    style={category === 'mantra' ? selectedOptionStyle : optionStyle}
+                                >
+                                    <Music size={16} /> Mantra
+                                </button>
+                                <button
+                                    onClick={() => setCategory('song')}
+                                    style={category === 'song' ? selectedOptionStyle : optionStyle}
+                                >
+                                    <Layers size={16} /> Song
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Youtube URL Input */}
+                        <div style={{ position: 'relative' }}>
+                            <label style={{
+                                position: 'absolute',
+                                left: '14px',
+                                top: (isUrlFocused || youtubeUrl) ? '-8px' : '15px',
+                                fontSize: (isUrlFocused || youtubeUrl) ? '12px' : '14px',
+                                color: isUrlFocused ? '#f97316' : '#9ca3af',
+                                backgroundColor: 'white',
+                                padding: '0 5px',
+                                transition: 'all 0.2s ease',
+                                pointerEvents: 'none',
+                                fontWeight: (isUrlFocused || youtubeUrl) ? '700' : '500',
+                                zIndex: 1
+                            }}>
+                                Youtube URL *
+                            </label>
+                            <input
+                                type="text"
+                                value={youtubeUrl}
+                                onChange={(e) => setYoutubeUrl(e.target.value)}
+                                onFocus={() => setIsUrlFocused(true)}
+                                onBlur={() => setIsUrlFocused(false)}
+                                style={{
+                                    ...inputStyle,
+                                    borderColor: isUrlFocused ? '#f97316' : '#e5e7eb',
+                                    borderWidth: isUrlFocused ? '2px' : '1px',
+                                    padding: isUrlFocused ? '13px 17px' : '14px 18px'
+                                }}
+                            />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '8px' }}>
+                                <YoutubeIcon size={14} color="#ef4444" />
+                                <span style={{ fontSize: '11px', color: '#9ca3af', fontWeight: '600' }}>Valid YouTube Links only</span>
+                            </div>
+                        </div>
+
+                        {/* Thumbnail URL Input */}
+                        <div style={{ position: 'relative' }}>
+                            <label style={{
+                                position: 'absolute',
+                                left: '14px',
+                                top: (isThumbnailFocused || thumbnailUrl) ? '-8px' : '15px',
+                                fontSize: (isThumbnailFocused || thumbnailUrl) ? '12px' : '14px',
+                                color: isThumbnailFocused ? '#f97316' : '#9ca3af',
+                                backgroundColor: 'white',
+                                padding: '0 5px',
+                                transition: 'all 0.2s ease',
+                                pointerEvents: 'none',
+                                fontWeight: (isThumbnailFocused || thumbnailUrl) ? '700' : '500',
+                                zIndex: 1
+                            }}>
+                                Thumbnail URL (Optional)
+                            </label>
+                            <input
+                                type="text"
+                                value={thumbnailUrl}
+                                onChange={(e) => setThumbnailUrl(e.target.value)}
+                                onFocus={() => setIsThumbnailFocused(true)}
+                                onBlur={() => setIsThumbnailFocused(false)}
+                                style={{
+                                    ...inputStyle,
+                                    borderColor: isThumbnailFocused ? '#f97316' : '#e5e7eb',
+                                    borderWidth: isThumbnailFocused ? '2px' : '1px',
+                                    padding: isThumbnailFocused ? '13px 17px' : '14px 18px'
+                                }}
+                            />
+                        </div>
+
+                        {/* Duration Input */}
+                        <div style={{ position: 'relative' }}>
+                            <label style={{
+                                position: 'absolute',
+                                left: '14px',
+                                top: (isDurationFocused || duration) ? '-8px' : '15px',
+                                fontSize: (isDurationFocused || duration) ? '12px' : '14px',
+                                color: isDurationFocused ? '#f97316' : '#9ca3af',
+                                backgroundColor: 'white',
+                                padding: '0 5px',
+                                transition: 'all 0.2s ease',
+                                pointerEvents: 'none',
+                                fontWeight: (isDurationFocused || duration) ? '700' : '500',
+                                zIndex: 1
+                            }}>
+                                Duration (Optional, e.g., "3:45")
+                            </label>
+                            <input
+                                type="text"
+                                value={duration}
+                                onChange={(e) => setDuration(e.target.value)}
+                                onFocus={() => setIsDurationFocused(true)}
+                                onBlur={() => setIsDurationFocused(false)}
+                                placeholder="e.g., 3:45"
+                                style={{
+                                    ...inputStyle,
+                                    borderColor: isDurationFocused ? '#f97316' : '#e5e7eb',
+                                    borderWidth: isDurationFocused ? '2px' : '1px',
+                                    padding: isDurationFocused ? '13px 17px' : '14px 18px'
+                                }}
+                            />
+                        </div>
+
+                        {/* Youtube Preview */}
+                        {youtubeUrl && (
+                            <div style={{
+                                marginTop: '-12px',
+                                borderRadius: '16px',
+                                overflow: 'hidden',
+                                backgroundColor: '#f8fafc',
+                                border: '1.5px solid #f1f5f9',
+                                aspectRatio: '16/9',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                position: 'relative',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.05)'
+                            }}>
+                                {getYoutubeVideoId(youtubeUrl) ? (
+                                    <iframe
+                                        width="100%"
+                                        height="100%"
+                                        src={`https://www.youtube.com/embed/${getYoutubeVideoId(youtubeUrl)}`}
+                                        title="YouTube video player"
+                                        frameBorder="0"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                        allowFullScreen
+                                        style={{ border: 'none' }}
+                                    />
+                                ) : (
                                     <div style={{
-                                        width: '40px',
-                                        height: '40px',
-                                        borderRadius: '12px',
-                                        backgroundColor: '#fff1f2',
                                         display: 'flex',
+                                        flexDirection: 'column',
                                         alignItems: 'center',
-                                        justifyContent: 'center'
+                                        gap: '8px',
+                                        padding: '24px'
                                     }}>
-                                        <YoutubeIcon size={20} color="#ef4444" />
+                                        <div style={{
+                                            width: '40px',
+                                            height: '40px',
+                                            borderRadius: '12px',
+                                            backgroundColor: '#fff1f2',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            <YoutubeIcon size={20} color="#ef4444" />
+                                        </div>
+                                        <p style={{
+                                            fontSize: '13px',
+                                            color: '#94a3b8',
+                                            fontWeight: '600',
+                                            textAlign: 'center',
+                                            margin: 0
+                                        }}>Preview will appear here once you enter a valid YouTube URL</p>
                                     </div>
-                                    <p style={{
-                                        fontSize: '13px',
-                                        color: '#94a3b8',
-                                        fontWeight: '600',
-                                        textAlign: 'center',
-                                        margin: 0
-                                    }}>Preview will appear here once you enter a valid YouTube URL</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
 
-                {/* Drawer Footer */}
-                <div style={{
-                    padding: '24px 28px',
-                    borderTop: '1px solid #f3f4f6',
-                    display: 'flex',
-                    gap: '12px'
-                }}>
-                    <button
-                        onClick={() => setIsDrawerOpen(false)}
-                        style={{
-                            flex: 1,
-                            padding: '12px',
-                            borderRadius: '10px',
-                            border: '1px solid #e5e7eb',
-                            backgroundColor: 'white',
-                            color: '#111827',
-                            fontSize: '14px',
-                            fontWeight: '700',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Discard
-                    </button>
-                    <button
-                        onClick={handleAddMedia}
-                        style={{
-                            flex: 1.5,
-                            padding: '12px',
-                            borderRadius: '10px',
-                            border: 'none',
-                            backgroundColor: '#f97316',
-                            color: 'white',
-                            fontSize: '14px',
-                            fontWeight: '700',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '8px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Add to Library <Plus size={16} />
-                    </button>
-                </div>
-            </div>
+                    {/* Drawer Footer */}
+                    <div style={{
+                        padding: '24px 28px',
+                        borderTop: '1px solid #f3f4f6',
+                        display: 'flex',
+                        gap: '12px'
+                    }}>
+                        <button
+                            onClick={() => setIsDrawerOpen(false)}
+                            style={{
+                                flex: 1,
+                                padding: '12px',
+                                borderRadius: '10px',
+                                border: '1px solid #e5e7eb',
+                                backgroundColor: 'white',
+                                color: '#111827',
+                                fontSize: '14px',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Discard
+                        </button>
+                        <button
+                            onClick={handleAddMedia}
+                            disabled={isSubmitting}
+                            style={{
+                                flex: 1.5,
+                                padding: '12px',
+                                borderRadius: '10px',
+                                border: 'none',
+                                backgroundColor: isSubmitting ? '#fb923c' : '#f97316',
+                                color: 'white',
+                                fontSize: '14px',
+                                fontWeight: '700',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                                opacity: isSubmitting ? 0.7 : 1
+                            }}
+                        >
+                            {isSubmitting ? 'Adding...' : 'Add to Library'} {!isSubmitting && <Plus size={16} />}
+                        </button>
+                    </div>
+                </div>,
+                document.body
+            )}
 
             <style dangerouslySetInnerHTML={{
                 __html: `
@@ -603,7 +807,7 @@ export function Media() {
                         right: -100%;
                     }
                 }
-                `
+            `
             }} />
         </div>
     );

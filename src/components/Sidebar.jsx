@@ -36,7 +36,7 @@ export function Sidebar() {
         { id: 'Volunteers', icon: <UserSquare2 size={22} />, label: 'Volunteers', path: '/volunteers' },
         { id: 'Media', icon: <Music size={22} />, label: 'Media', path: '/media' },
         { id: 'SOSRequests', icon: <AlertTriangle size={22} />, label: 'SOS Requests', path: '/sos-requests' },
-        { id: 'GuideCreation', icon: <BookOpen size={22} />, label: 'Vratham Guide', path: '/guide-creation' },
+        { id: 'GuideCreation', icon: <BookOpen size={22} />, label: 'Guide', path: '/guide-creation' },
         { id: 'Notifications', icon: <Bell size={22} />, label: 'Notifications', path: '/notifications' },
     ];
 

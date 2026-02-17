@@ -51,23 +51,112 @@ function AuthenticatedApp() {
         eventDate: '',
         startTime: '',
         contact: '',
-        description: ''
+        description: '',
+        startCoords: { lat: 9.9195, lng: 78.1193 },
+        destCoords: { lat: 9.8329, lng: 78.0841 },
+        stops: [
+            { id: 1, name: "McDonald's", type: "Annathanam", coords: { lat: 9.9252, lng: 78.1198 } },
+            { id: 2, name: "Bird's Fort Trail Park", type: "Resting Place/Park", coords: { lat: 9.9152, lng: 78.1298 } },
+        ]
     });
     const [lastSaved, setLastSaved] = useState('10:45 AM');
     const [view, setView] = useState('list'); // 'list' or 'create'
+    const [errors, setErrors] = useState({});
 
     if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
     }
 
-    const handleSaveNext = () => {
+    const validateStep = () => {
+        const newErrors = {};
+        if (currentStep === 1) {
+            if (!formData.eventName.trim()) newErrors.eventName = "Event name is required";
+            if (!formData.eventDate) newErrors.eventDate = "Event date is required";
+            if (!formData.startTime) newErrors.startTime = "Start time is required";
+            if (!formData.description.trim()) newErrors.description = "Description is required";
+            const phoneClean = (formData.contact || "").replace(/\s/g, '');
+            if (!phoneClean) {
+                newErrors.contact = "Emergency helpline is required";
+            } else if (phoneClean.length < 10) {
+                newErrors.contact = "Enter a valid 10-digit number";
+            }
+        }
+        if (currentStep === 2) {
+            if (!formData.startCoords || !formData.destCoords) {
+                newErrors.map = "Please ensure start and destination points are set.";
+            }
+        }
+
+        setErrors(newErrors);
+
+        if (Object.keys(newErrors).length > 0) {
+            const firstError = Object.values(newErrors)[0];
+            alert(firstError);
+            return false;
+        }
+        return true;
+    };
+
+    const handleSaveNext = async () => {
+        if (!validateStep()) return;
+
         if (currentStep < 2) {
             setCurrentStep(prev => prev + 1);
             setLastSaved(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         } else {
-            console.log("Final Form Data:", formData);
-            setView('list');
-            setCurrentStep(1);
+            try {
+                // Construct payload for API
+                const payload = {
+                    name: formData.eventName,
+                    description: formData.description,
+                    event_type: "walk",
+                    is_paid: false,
+                    fee: 0,
+                    event_date: new Date(`${formData.eventDate}T${formData.startTime}`).toISOString(),
+                    start_lat: formData.startCoords.lat,
+                    start_lng: formData.startCoords.lng,
+                    end_lat: formData.destCoords.lat,
+                    end_lng: formData.destCoords.lng,
+                    route_polyline: formData.stops.map(stop => ({
+                        name: stop.name,
+                        type: stop.type,
+                        lat: stop.coords.lat,
+                        lng: stop.coords.lng
+                    })),
+                    emergency_contacts: [
+                        {
+                            name: "General Emergency",
+                            phone: formData.contact
+                        }
+                    ]
+                };
+
+                const response = await fetch('/api/events/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log("Event created successfully:", result);
+                    alert("Event created successfully!");
+                    setView('list');
+                    setCurrentStep(1);
+                } else if (response.status === 422) {
+                    const error = await response.json();
+                    console.error("Validation Error from Server:", error.detail);
+                    alert(`Submission failed: ${error.detail[0]?.msg || "Invalid data structure"}`);
+                } else {
+                    console.error("Failed to create event:", response.statusText);
+                    alert("Failed to create event. Please check the logs.");
+                }
+            } catch (error) {
+                console.error("Error creating event:", error);
+                alert("An error occurred while creating the event.");
+            }
         }
     };
 
@@ -83,7 +172,10 @@ function AuthenticatedApp() {
             eventDate: '',
             startTime: '',
             contact: '',
-            description: ''
+            description: '',
+            startCoords: { lat: 9.9195, lng: 78.1193 },
+            destCoords: { lat: 9.8329, lng: 78.0841 },
+            stops: []
         });
         setCurrentStep(1);
         setView('list');
@@ -98,11 +190,14 @@ function AuthenticatedApp() {
     const handleEditEvent = (event) => {
         console.log("Editing event:", event);
         setFormData({
-            eventName: event.title,
-            eventDate: event.schedule.split(' • ')[0] || '', // Simple parsing
-            startTime: event.schedule.split(' • ')[1]?.split(' ')[0] || '', // Simple parsing
-            contact: '', // Mock data doesn't have contact
-            description: '' // Mock data doesn't have description
+            eventName: event.title || '',
+            eventDate: event.schedule?.split(' • ')[0] || '',
+            startTime: event.schedule?.split(' • ')[1]?.split(' ')[0] || '',
+            contact: '',
+            description: '',
+            startCoords: { lat: 9.9195, lng: 78.1193 },
+            destCoords: { lat: 9.8329, lng: 78.0841 },
+            stops: []
         });
         setView('create');
         setCurrentStep(1);
@@ -121,8 +216,12 @@ function AuthenticatedApp() {
                                     eventDate: '',
                                     startTime: '',
                                     contact: '',
-                                    description: ''
+                                    description: '',
+                                    startCoords: { lat: 9.9195, lng: 78.1193 },
+                                    destCoords: { lat: 9.8329, lng: 78.0841 },
+                                    stops: []
                                 });
+                                setErrors({});
                                 setView('create');
                             }}
                             onEdit={handleEditEvent}
@@ -145,10 +244,19 @@ function AuthenticatedApp() {
                                 flexDirection: 'column'
                             }}>
                                 {currentStep === 1 && (
-                                    <EventForm formData={formData} setFormData={setFormData} />
+                                    <EventForm formData={formData} setFormData={setFormData} errors={errors} />
                                 )}
                                 {currentStep === 2 && (
-                                    <RoutesAndStops />
+                                    <RoutesAndStops
+                                        startCoords={formData.startCoords}
+                                        destCoords={formData.destCoords}
+                                        stops={formData.stops}
+                                        onUpdateStops={(newStops) => setFormData(prev => ({ ...prev, stops: newStops }))}
+                                        onUpdateCoords={(type, coords) => setFormData(prev => ({
+                                            ...prev,
+                                            [type === 'start' ? 'startCoords' : 'destCoords']: coords
+                                        }))}
+                                    />
                                 )}
                             </div>
 

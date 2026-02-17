@@ -1,25 +1,120 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useConfig } from '../contexts/ConfigContext';
 import { useNavigate } from '../simple-router';
 import { Lock, User, Eye, EyeOff } from 'lucide-react';
 import VelLogo from '../assets/Vel.svg';
 
-export function Login() {
-    const { login, appConfig } = useConfig();
-    const navigate = useNavigate();
-    const [formData, setFormData] = useState({ username: '', password: '' });
-    const [error, setError] = useState('');
+const InputField = ({ type = "text", placeholder, icon: Icon, value, onChange, isPassword = false }) => {
+    const [isFocused, setIsFocused] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
-    const [rememberDevice, setRememberDevice] = useState(false);
-    const [isUsernameFocused, setIsUsernameFocused] = useState(false);
-    const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
-    React.useEffect(() => {
+    return (
+        <div style={{ position: 'relative' }}>
+            <label style={{
+                position: 'absolute',
+                left: '14px',
+                top: (isFocused || value) ? '-8px' : '15px',
+                fontSize: (isFocused || value) ? '12px' : '14px',
+                color: isFocused ? '#f97316' : '#9ca3af',
+                backgroundColor: 'white',
+                padding: '0 5px',
+                transition: 'all 0.2s ease',
+                pointerEvents: 'none',
+                fontWeight: (isFocused || value) ? '700' : '500',
+                zIndex: 1
+            }}>
+                {placeholder}
+            </label>
+            {Icon && <Icon size={18} style={{
+                position: 'absolute',
+                right: isPassword ? '3rem' : '1rem',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                color: '#94a3b8',
+                zIndex: 1
+            }} />}
+            <input
+                type={isPassword ? (showPassword ? "text" : "password") : type}
+                value={value}
+                onChange={onChange}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                style={{
+                    width: '100%',
+                    padding: isFocused ? '13px 17px' : '14px 18px',
+                    borderRadius: '12px',
+                    border: `${isFocused ? '2px' : '1px'} solid ${isFocused ? '#f97316' : '#e5e7eb'}`,
+                    fontSize: '14px',
+                    color: '#111827',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.2s ease'
+                }}
+            />
+            {isPassword && (
+                <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                        position: 'absolute',
+                        right: '1rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#94a3b8',
+                        padding: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        zIndex: 1
+                    }}
+                >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+            )}
+        </div>
+    );
+};
+
+export function Login() {
+    const { login } = useConfig();
+    const navigate = useNavigate();
+    const [formData, setFormData] = useState({
+        username: '',
+        password: ''
+    });
+    const [error, setError] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
+    const [rememberDevice, setRememberDevice] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
         document.title = 'Login | Temple Walk Admin';
     }, []);
 
+    // Check for remembered username on mount
+    useEffect(() => {
+        const savedUsername = localStorage.getItem('rememberedUsername');
+        if (savedUsername) {
+            setFormData(prev => ({ ...prev, username: savedUsername }));
+            setRememberDevice(true);
+        }
+    }, []);
+
+
+
     const handleSubmit = (e) => {
         e.preventDefault();
+        setError('');
+
+        // Handle Remember Device
+        if (rememberDevice) {
+            localStorage.setItem('rememberedUsername', formData.username);
+        } else {
+            localStorage.removeItem('rememberedUsername');
+        }
+
         const success = login(formData.username, formData.password);
         if (success) {
             navigate('/');
@@ -28,13 +123,17 @@ export function Login() {
         }
     };
 
+
+
     return (
         <div style={{
             minHeight: '100vh',
             background: '#f5e6d3',
-            padding: '3rem 2rem',
+            padding: '2rem',
             fontFamily: 'Outfit, sans-serif',
-            overflowY: 'auto'
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
         }}>
             <div style={{
                 display: 'grid',
@@ -49,7 +148,7 @@ export function Login() {
                 margin: '0 auto'
             }} className="login-container">
 
-                {/* Left Side - Login Form */}
+                {/* Left Side - Form */}
                 <div style={{
                     padding: '4rem 3.5rem',
                     display: 'flex',
@@ -78,7 +177,7 @@ export function Login() {
                         color: '#1e293b',
                         marginBottom: '0.5rem',
                         fontFamily: 'Lora, serif'
-                    }}>Welcome Admin</h1>
+                    }}>{'Welcome Admin'}</h1>
 
                     <p style={{
                         color: '#64748b',
@@ -89,117 +188,20 @@ export function Login() {
 
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-                        {/* Username Field with Floating Label */}
-                        <div style={{ position: 'relative' }}>
-                            <label style={{
-                                position: 'absolute',
-                                left: '14px',
-                                top: (isUsernameFocused || formData.username) ? '-8px' : '15px',
-                                fontSize: (isUsernameFocused || formData.username) ? '12px' : '14px',
-                                color: isUsernameFocused ? '#f97316' : '#9ca3af',
-                                backgroundColor: 'white',
-                                padding: '0 5px',
-                                transition: 'all 0.2s ease',
-                                pointerEvents: 'none',
-                                fontWeight: (isUsernameFocused || formData.username) ? '700' : '500',
-                                zIndex: 1
-                            }}>
-                                Username or Email
-                            </label>
-                            <User size={18} style={{
-                                position: 'absolute',
-                                right: '1rem',
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                color: '#94a3b8',
-                                zIndex: 1
-                            }} />
-                            <input
-                                type="text"
-                                value={formData.username}
-                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                onFocus={() => setIsUsernameFocused(true)}
-                                onBlur={() => setIsUsernameFocused(false)}
-                                style={{
-                                    width: '100%',
-                                    padding: isUsernameFocused ? '13px 17px' : '14px 18px',
-                                    borderRadius: '12px',
-                                    border: `${isUsernameFocused ? '2px' : '1px'} solid ${isUsernameFocused ? '#f97316' : '#e5e7eb'}`,
-                                    fontSize: '14px',
-                                    color: '#111827',
-                                    outline: 'none',
-                                    boxSizing: 'border-box',
-                                    transition: 'all 0.2s ease'
-                                }}
-                            />
-                        </div>
+                        <InputField
+                            placeholder="Username or Email"
+                            icon={User}
+                            value={formData.username}
+                            onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                        />
+                        <InputField
+                            placeholder="Password"
+                            icon={Lock}
+                            isPassword={true}
+                            value={formData.password}
+                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        />
 
-                        {/* Password Field with Floating Label */}
-                        <div style={{ position: 'relative' }}>
-                            <label style={{
-                                position: 'absolute',
-                                left: '14px',
-                                top: (isPasswordFocused || formData.password) ? '-8px' : '15px',
-                                fontSize: (isPasswordFocused || formData.password) ? '12px' : '14px',
-                                color: isPasswordFocused ? '#f97316' : '#9ca3af',
-                                backgroundColor: 'white',
-                                padding: '0 5px',
-                                transition: 'all 0.2s ease',
-                                pointerEvents: 'none',
-                                fontWeight: (isPasswordFocused || formData.password) ? '700' : '500',
-                                zIndex: 1
-                            }}>
-                                Password
-                            </label>
-                            <Lock size={18} style={{
-                                position: 'absolute',
-                                right: '3rem',
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                color: '#94a3b8',
-                                zIndex: 1
-                            }} />
-                            <input
-                                type={showPassword ? "text" : "password"}
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                onFocus={() => setIsPasswordFocused(true)}
-                                onBlur={() => setIsPasswordFocused(false)}
-                                style={{
-                                    width: '100%',
-                                    padding: isPasswordFocused ? '13px 17px' : '14px 18px',
-                                    borderRadius: '12px',
-                                    border: `${isPasswordFocused ? '2px' : '1px'} solid ${isPasswordFocused ? '#f97316' : '#e5e7eb'}`,
-                                    fontSize: '14px',
-                                    color: '#111827',
-                                    outline: 'none',
-                                    boxSizing: 'border-box',
-                                    transition: 'all 0.2s ease'
-                                }}
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                style={{
-                                    position: 'absolute',
-                                    right: '1rem',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    background: 'none',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                    color: '#94a3b8',
-                                    padding: 0,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    zIndex: 1
-                                }}
-                            >
-                                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                            </button>
-                        </div>
-
-                        {/* Remember Device & Forgot Password */}
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <label style={{
                                 display: 'flex',
@@ -227,9 +229,9 @@ export function Login() {
                         </div>
 
                         {error && <p style={{ color: '#ef4444', fontSize: '0.85rem', fontWeight: 600, margin: 0 }}>{error}</p>}
+                        {successMessage && <p style={{ color: '#22c55e', fontSize: '0.85rem', fontWeight: 600, margin: 0 }}>{successMessage}</p>}
 
-                        {/* Sign In Button */}
-                        <button type="submit" style={{
+                        <button disabled={isLoading} type="submit" style={{
                             background: '#f97316',
                             color: 'white',
                             padding: '1rem',
@@ -240,31 +242,28 @@ export function Login() {
                             cursor: 'pointer',
                             marginTop: '0.5rem',
                             boxShadow: '0 4px 14px rgba(249, 115, 22, 0.25)',
-                            transition: 'all 0.2s'
+                            transition: 'all 0.2s',
+                            opacity: isLoading ? 0.7 : 1
                         }}
                             onMouseEnter={(e) => {
-                                e.target.style.transform = 'translateY(-2px)';
-                                e.target.style.boxShadow = '0 6px 20px rgba(249, 115, 22, 0.3)';
+                                if (!isLoading) {
+                                    e.target.style.transform = 'translateY(-2px)';
+                                    e.target.style.boxShadow = '0 6px 20px rgba(249, 115, 22, 0.3)';
+                                }
                             }}
                             onMouseLeave={(e) => {
-                                e.target.style.transform = 'translateY(0)';
-                                e.target.style.boxShadow = '0 4px 14px rgba(249, 115, 22, 0.25)';
+                                if (!isLoading) {
+                                    e.target.style.transform = 'translateY(0)';
+                                    e.target.style.boxShadow = '0 4px 14px rgba(249, 115, 22, 0.25)';
+                                }
                             }}
                         >
-                            Sign In
+                            {isLoading ? 'Processing...' : 'Sign In'}
                         </button>
                     </form>
 
-                    {/* Footer */}
-                    <p style={{
-                        textAlign: 'center',
-                        marginTop: '2rem',
-                        fontSize: '0.85rem',
-                        color: '#64748b',
-                        fontWeight: 500
-                    }}>
-                        Need access? <a href="#" style={{ color: '#f97316', textDecoration: 'none', fontWeight: 700 }}>Contact Administrator</a>
-                    </p>
+                    {/* Footer - Restored for access to Registration */}
+
                 </div>
 
                 {/* Right Side - Branding */}
