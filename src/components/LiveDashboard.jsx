@@ -11,7 +11,7 @@ import velIcon from '../assets/Vel.svg';
 
 export function LiveDashboard() {
     const navigate = useNavigate();
-    const [timeRemaining, setTimeRemaining] = useState({ days: 5, hours: 2, minutes: 13, seconds: 36 });
+    const [timeRemaining, setTimeRemaining] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
     const [activeFilter, setActiveFilter] = useState('all');
 
@@ -55,8 +55,8 @@ export function LiveDashboard() {
         const fetchDashboardData = async () => {
             try {
                 const [usersRes, volunteersRes, sosRes] = await Promise.all([
-                    fetch('/api/v1/users/?skip=0&limit=2000'),
-                    fetch('/api/v1/volunteers/?skip=0&limit=2000'),
+                    fetch('/api/users/?skip=0&limit=2000'),
+                    fetch('/api/volunteers/?skip=0&limit=2000'),
                     fetch('/api/sos/list')
                 ]);
 
@@ -69,20 +69,28 @@ export function LiveDashboard() {
                     const users = await usersRes.json();
                     walkingCount = users.filter(u => u.role === 'devotee').length;
                 } else {
-                    walkingCount = 1240; // Mock fallback
+                    walkingCount = 0;
                 }
 
                 if (volunteersRes.ok) {
                     const volunteers = await volunteersRes.json();
                     activeVolunteers = volunteers.length;
                 } else {
-                    activeVolunteers = 85; // Mock fallback
+                    activeVolunteers = 0;
                 }
 
                 if (sosRes.ok) {
                     const sos = await sosRes.json();
-                    pendingSos = sos.filter(s => !s.isCompleted).length;
-                    formattedSos = sos.map(req => ({
+                    // Filter out "Guest User" and specific test IDs
+                    const realSos = sos.filter(s =>
+                        s.name !== "Guest User" &&
+                        s.name !== "vv" &&
+                        !String(s.id).startsWith('g_') &&
+                        s.id !== 666636
+                    );
+
+                    pendingSos = realSos.filter(s => !s.isCompleted).length;
+                    formattedSos = realSos.map(req => ({
                         id: req.id,
                         name: req.name || "Unknown User",
                         helpType: req.typeLabel || req.type || "SOS Alert",
@@ -93,13 +101,8 @@ export function LiveDashboard() {
                         color: req.isAccepted ? "#3b82f6" : "#ef4444"
                     })).slice(0, 5);
                 } else {
-                    // Mock data fallback for SOS
-                    pendingSos = 3;
-                    formattedSos = [
-                        { id: 101, name: "Rahul Sharma", helpType: "Medical Emergency", location: "Near Gate 2", time: "2m ago", color: "#ef4444" },
-                        { id: 102, name: "Anjali Devi", helpType: "Walking Assistance", location: "Main Hall", time: "5m ago", attendedBy: "Volunteer Raj", color: "#3b82f6" },
-                        { id: 103, name: "Suresh Mehra", helpType: "Security Alert", location: "Parking B", time: "12m ago", color: "#ef4444" }
-                    ];
+                    pendingSos = 0;
+                    formattedSos = [];
                 }
 
                 setCounts({
@@ -110,11 +113,8 @@ export function LiveDashboard() {
                 setSosList(formattedSos);
             } catch (error) {
                 console.error("Dashboard error, using mock data", error);
-                // Final fallback if everything fails
-                setCounts({ walking: 1240, sos: 3, volunteers: 85 });
-                setSosList([
-                    { id: 101, name: "Rahul Sharma", helpType: "Medical Emergency", location: "Near Gate 2", time: "2m ago", color: "#ef4444" }
-                ]);
+                setCounts({ walking: 0, sos: 0, volunteers: 0 });
+                setSosList([]);
             } finally {
                 setLoading(false);
             }
@@ -292,9 +292,6 @@ export function LiveDashboard() {
                                 fontSize: '0.8rem',
                                 fontWeight: 600,
                                 cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
                                 transition: 'all 0.2s'
                             }}>
                             <Grid size={14} />
@@ -737,61 +734,81 @@ export function LiveDashboard() {
 
                 @media (max-width: 768px) {
                     .dashboard-header {
-                        flex-direction: column;
+                        flex-direction: column !important;
                         align-items: flex-start !important;
                         gap: 0.75rem !important;
                         margin-bottom: 1rem !important;
                     }
 
                     .dashboard-header h1 {
-                        font-size: 1.25rem !important;
+                        font-size: 1.2rem !important;
+                    }
+
+                    .dashboard-header p {
+                        font-size: 0.75rem !important;
                     }
                     
                     .dashboard-header .primary-action-btn {
-                        width: 100%;
+                        width: 100% !important;
                         font-size: 0.85rem !important;
-                        padding: 0.6rem !important;
+                        padding: 0.65rem 1rem !important;
+                        margin-top: 0 !important;
                     }
 
+                    /* Stats: 2 columns on mobile for better fit */
                     .stats-grid {
-                        grid-template-columns: 1fr !important;
+                        grid-template-columns: repeat(2, 1fr) !important;
                         gap: 0.75rem !important;
                     }
 
-                    /* Stat Card adjustments */
                     .stats-grid > div {
-                        padding: 0.75rem !important;
-                    }
-                    .stats-grid h3 {
-                        font-size: 1.5rem !important; /* Reduced from 1.75rem */
+                        padding: 1rem 0.75rem !important;
+                        flex-direction: column !important;
+                        align-items: center !important;
+                        text-align: center !important;
+                        gap: 0.5rem !important;
                     }
 
+                    .stats-grid > div > div:first-child {
+                        width: 36px !important;
+                        height: 36px !important;
+                    }
+
+                    .stats-grid p {
+                        font-size: 0.6rem !important;
+                        margin-bottom: 0.1rem !important;
+                    }
+
+                    .stats-grid h3 {
+                        font-size: 1.25rem !important;
+                    }
+
+                    /* Main grid stacks vertically */
                     .main-dashboard-grid {
                         display: flex !important;
-                        flex-direction: column;
-                        overflow-y: auto !important; 
+                        flex-direction: column !important;
+                        overflow-y: visible !important;
                         height: auto !important;
                         min-height: 0 !important;
                         gap: 1rem !important;
                     }
                     
-                    /* Adjust map container height on mobile */
+                    /* Map container compact height */
                     .main-dashboard-grid > div:first-child {
-                        height: 300px !important; /* Reduced height */
+                        height: 260px !important;
                         flex: none !important;
                     }
 
-                    /* Adjust SOS list height on mobile */
+                    /* SOS list auto height */
                     .main-dashboard-grid > div:last-child {
                         height: auto !important;
                         flex: none !important;
-                        padding: 1rem !important; /* Reduced padding */
+                        padding: 1rem !important;
                     }
                     
                     .live-dashboard {
                         height: auto !important;
-                        overflow-y: auto !important;
-                        padding-bottom: 4rem; 
+                        overflow: visible !important;
                     }
                 }
                 `

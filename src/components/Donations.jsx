@@ -266,6 +266,76 @@ export function Donations() {
             <style dangerouslySetInnerHTML={{
                 __html: `
                 .tx-row:hover { background-color: #f8fafc; }
+                
+                @media (max-width: 768px) {
+                    .donations-page { padding: 0.5rem !important; }
+                    
+                    .page-title-section h1 { font-size: 1.4rem !important; }
+                    .page-title-section p { font-size: 0.8rem !important; }
+                    
+                    /* Stats stacking on mobile */
+                    div[style*="grid-template-columns: repeat(3, 1fr)"] {
+                        grid-template-columns: 1fr !important;
+                        gap: 1rem !important;
+                    }
+                    
+                    /* Tabs and Search stacking */
+                    div[style*="justify-content: space-between"] {
+                        flex-direction: column !important;
+                        align-items: stretch !important;
+                        gap: 1.25rem !important;
+                    }
+                    
+                    div[style*="border-bottom: 1.5px solid #f1f5f9"] {
+                        overflow-x: auto !important;
+                        padding-bottom: 0.5rem !important;
+                        gap: 1.5rem !important;
+                    }
+                    
+                    div[style*="border-bottom: 1.5px solid #f1f5f9"]::-webkit-scrollbar {
+                        display: none;
+                    }
+
+                    div[style*="width: 260px"] {
+                        width: 100% !important;
+                    }
+                    
+                    input[placeholder="Search by donor name..."] {
+                        width: 100% !important;
+                    }
+
+                    /* Convert table to card view */
+                    table { display: block !important; }
+                    thead { display: none !important; }
+                    tbody { display: block !important; width: 100% !important; }
+                    
+                    .tx-row {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        gap: 0.75rem !important;
+                        padding: 1.25rem 1rem !important;
+                        border-bottom: 1.5px solid #f1f5f9 !important;
+                    }
+                    
+                    .tx-row td {
+                        padding: 0 !important;
+                        border: none !important;
+                        display: flex !important;
+                        align-items: center !important;
+                    }
+                    
+                    .tx-row td:nth-child(2) {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                    }
+                    
+                    .tx-row td:last-child {
+                        justify-content: flex-end !important;
+                        position: absolute;
+                        top: 1.25rem;
+                        right: 1rem;
+                    }
+                }
                 `
             }} />
         </div>

@@ -20,10 +20,10 @@ import {
     SOSRequests,
     SideCards,
     LiveDashboard,
-    Donations,
+
     EventsManagement,
     Login,
-    AccountSettings,
+
     GuideCreation
 } from './components';
 
@@ -344,7 +344,7 @@ function AuthenticatedApp() {
             <Route path="/sos-requests" element={<MainLayout><SOSRequests /></MainLayout>} />
             <Route path="/guide-creation" element={<MainLayout><GuideCreation /></MainLayout>} />
             <Route path="/notifications" element={<MainLayout><Notifications /></MainLayout>} />
-            <Route path="/account-settings" element={<MainLayout><AccountSettings /></MainLayout>} />
+
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes >
     );

@@ -50,7 +50,7 @@ export function GuideCreation() {
     React.useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const response = await fetch('/api/v1/guide-categories/');
+                const response = await fetch('/api/guide-categories/');
                 if (response.ok) {
                     const data = await response.json();
                     setCategories(data.map(cat => ({
@@ -115,7 +115,7 @@ export function GuideCreation() {
 
         setLoading(true);
         try {
-            const response = await fetch('/api/v1/guide-categories/', {
+            const response = await fetch('/api/guide-categories/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -244,7 +244,7 @@ export function GuideCreation() {
         }}>
             {/* Toast Notification */}
             {toast && (
-                <div style={{
+                <div className="toast-notification" style={{
                     position: 'fixed',
                     top: '2rem',
                     right: '2rem',
@@ -267,7 +267,7 @@ export function GuideCreation() {
 
             {/* Header Actions */}
             {/* Page Title Header */}
-            <div style={{
+            <div className="page-header" style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -305,6 +305,7 @@ export function GuideCreation() {
                     </div>
                 </div>
                 <button
+                    className="create-category-btn"
                     onClick={openAddCategoryPanel}
                     style={{
                         padding: '0.75rem 1.5rem',
@@ -326,7 +327,7 @@ export function GuideCreation() {
             </div>
 
             {/* Search Bar Card */}
-            <div style={{
+            <div className="search-card" style={{
                 background: 'white',
                 borderRadius: '24px',
                 padding: '1.5rem',
@@ -344,7 +345,7 @@ export function GuideCreation() {
 
 
             {/* Categories List */}
-            <div style={{
+            <div className="categories-list-container" style={{
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '0.75rem',
@@ -397,7 +398,7 @@ export function GuideCreation() {
                     filteredCategories.map((cat, index) => {
                         const IconComponent = availableIcons[cat.icon] || Book;
                         return (
-                            <div key={cat.id} style={{
+                            <div key={cat.id} className="category-card" style={{
                                 border: '1px solid #e2e8f0',
                                 borderRadius: '16px',
                                 padding: '1.5rem',
@@ -407,7 +408,7 @@ export function GuideCreation() {
                                 maxWidth: '800px',
                                 margin: '0'
                             }}>
-                                <div style={{
+                                <div className="category-header" style={{
                                     display: 'flex',
                                     justifyContent: 'space-between',
                                     marginBottom: cat.expanded ? '1.5rem' : '0',
@@ -419,7 +420,7 @@ export function GuideCreation() {
                                         <span style={{ fontWeight: 700, color: '#64748b' }}>#{index + 1}</span>
                                         <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{cat.title || 'New Category'}</h3>
                                     </div>
-                                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                                    <div className="category-actions" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
                                         <Toggle active={cat.active} onToggle={() => updateCategory(cat.id, 'active', !cat.active)} />
                                         <button onClick={() => deleteCategory(cat.id)} style={{ ...iconBtnStyle, color: '#ef4444' }}>
                                             <Trash2 size={18} />
@@ -432,7 +433,7 @@ export function GuideCreation() {
 
                                 {cat.expanded && (
                                     <>
-                                        <div style={gridStyle}>
+                                        <div className="grid-layout" style={gridStyle}>
                                             <div>
                                                 <label style={labelStyle}>Category Icon</label>
                                                 <div style={{ position: 'relative' }}>
@@ -574,7 +575,7 @@ export function GuideCreation() {
             </div>
 
 
-            < div style={{
+            < div className="side-panel" style={{
                 position: 'fixed', top: 0, right: activeCategoryForAdd ? 0 : '-400px', width: '350px',
                 height: '100vh', background: 'white', boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
                 zIndex: 9999, padding: '2rem', transition: 'right 0.3s ease-in-out',
@@ -622,7 +623,7 @@ export function GuideCreation() {
                 )
             }
 
-            <div style={{
+            <div className="side-panel" style={{
                 position: 'fixed', top: 0, right: isAddCategoryOpen ? 0 : '-400px', width: '350px',
                 height: '100vh', background: 'white', boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
                 zIndex: 9999, padding: '2rem', transition: 'right 0.3s ease-in-out',
@@ -696,6 +697,61 @@ export function GuideCreation() {
                     </button>
                 </div>
             </div>
+
+            {/* Responsive styles */}
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                @keyframes slideIn {
+                    from { opacity: 0; transform: translateY(-10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                }
+
+                @media (max-width: 768px) {
+                    .page-header { flex-direction: column !important; align-items: stretch !important; gap: 0.75rem !important; margin-bottom: 1rem !important; }
+                    .page-header h1 { font-size: 1.2rem !important; }
+                    
+                    .create-category-btn { width: 100% !important; margin-top: 0.5rem; justify-content: center !important; }
+                    
+                    .search-card { padding: 1rem !important; margin-bottom: 1rem !important; }
+                    
+                    .categories-list-container { padding: 1rem !important; }
+                    
+                    .category-card { 
+                        padding: 1rem !important; 
+                        max-width: 100% !important;
+                    }
+                    
+                    .category-header {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 1rem !important;
+                    }
+                    
+                    .category-actions {
+                        width: 100% !important;
+                        justify-content: space-between !important;
+                    }
+
+                    .grid-layout {
+                        grid-template-columns: 1fr !important;
+                        gap: 1rem !important;
+                    }
+
+                    .side-panel {
+                        width: 100% !important;
+                        right: \${activeCategoryForAdd || isAddCategoryOpen ? '0' : '-100%'} !important;
+                        border-radius: 0 !important;
+                        padding: 1.5rem !important;
+                    }
+
+                    .toast-notification {
+                        top: 1rem !important;
+                        right: 1rem !important;
+                        left: 1rem !important;
+                    }
+                }
+                `
+            }} />
         </div >
     );
 }

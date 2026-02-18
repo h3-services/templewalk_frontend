@@ -21,30 +21,36 @@ export function EventsManagement({ onCreateNew, onEdit }) {
                 const response = await fetch('/api/events/');
                 if (response.ok) {
                     const data = await response.json();
-                    const formatted = data.map((e, index) => {
-                        const eventDate = new Date(e.event_date);
-                        const isValidDate = !isNaN(eventDate.getTime());
+                    const formatted = data
+                        .filter(e => {
+                            const name = (e.name || '').toLowerCase();
+                            const excludeNames = ['walk', 'vd', 'muthumariamman temple walk', 'fghjkl', 'morning fitness walk', 'asdf'];
+                            return !excludeNames.includes(name);
+                        })
+                        .map((e, index) => {
+                            const eventDate = new Date(e.event_date);
+                            const isValidDate = !isNaN(eventDate.getTime());
 
-                        return {
-                            id: e.id || `event-${index}`,
-                            title: e.name || 'Untitled Event',
-                            schedule: isValidDate
-                                ? eventDate.toLocaleDateString() + ' • ' + eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                                : 'Schedule TBD',
-                            status: isValidDate && eventDate > new Date() ? 'Upcoming' : 'Ongoing',
-                            statusColor: isValidDate && eventDate > new Date() ? '#3b82f6' : '#10b981',
-                            participants: '0',
-                            participantsLabel: 'Registered',
-                            icon: <TrendingUp size={20} />,
-                            iconBg: '#eff6ff',
-                            iconColor: '#3b82f6',
-                            isDraft: false,
-                            coords: {
-                                lat: parseFloat(e.start_lat) || 9.9195,
-                                lng: parseFloat(e.start_lng) || 78.1193
-                            }
-                        };
-                    });
+                            return {
+                                id: e.id || `event-${index}`,
+                                title: e.name || 'Untitled Event',
+                                schedule: isValidDate
+                                    ? eventDate.toLocaleDateString() + ' • ' + eventDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                    : 'Schedule TBD',
+                                status: isValidDate && eventDate > new Date() ? 'Upcoming' : 'Ongoing',
+                                statusColor: isValidDate && eventDate > new Date() ? '#3b82f6' : '#10b981',
+                                participants: '0',
+                                participantsLabel: 'Registered',
+                                icon: <TrendingUp size={20} />,
+                                iconBg: '#eff6ff',
+                                iconColor: '#3b82f6',
+                                isDraft: false,
+                                coords: {
+                                    lat: parseFloat(e.start_lat) || 9.9195,
+                                    lng: parseFloat(e.start_lng) || 78.1193
+                                }
+                            };
+                        });
                     setEvents(formatted);
                 }
             } catch (err) {
@@ -181,6 +187,42 @@ export function EventsManagement({ onCreateNew, onEdit }) {
                 </div>
                 <Pagination currentPage={currentPage} itemsPerPage={itemsPerPage} totalEntries={filteredEvents.length} onPageChange={setCurrentPage} onItemsPerPageChange={setItemsPerPage} />
             </div>
+
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                @media (max-width: 768px) {
+                    .page-header { flex-direction: column !important; align-items: stretch !important; gap: 0.75rem !important; margin-bottom: 1rem !important; }
+                    .page-header h1 { font-size: 1.2rem !important; }
+                    
+                    .filter-bar { flex-direction: column !important; align-items: stretch !important; padding: 1rem !important; gap: 1rem !important; }
+                    .filter-actions { flex-direction: column !important; width: 100% !important; gap: 1rem !important; }
+                    
+                    .table-header { display: none !important; }
+                    
+                    /* Card stacking for event rows */
+                    .events-management .custom-scrollbar > div {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        gap: 0.75rem !important;
+                        padding: 1.25rem 1rem !important;
+                        border-bottom: 1.5px solid #f8fafc !important;
+                        grid-template-columns: unset !important;
+                    }
+                    
+                    /* Aligning column contents for mobile */
+                    .events-management .custom-scrollbar > div > div {
+                        width: 100% !important;
+                    }
+                    
+                    /* Action buttons row */
+                    .events-management .custom-scrollbar > div > div:last-child {
+                        flex-direction: row !important;
+                        justify-content: flex-start !important;
+                        padding-top: 0.5rem;
+                        border-top: 1px solid #f1f5f9;
+                    }
+                }
+            ` }} />
         </div>
     );
 }

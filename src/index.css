@@ -779,44 +779,31 @@ h3 {
 
 /* ==================== RESPONSIVE STYLES ==================== */
 
-/* Mobile Menu Toggle Button */
+/* Mobile Menu Toggle Button - hidden, replaced by bottom nav */
 .mobile-menu-toggle {
-    display: none;
-    position: fixed;
-    top: 1rem;
-    left: 1rem;
-    z-index: 200;
-    width: 44px;
-    height: 44px;
-    background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
-    border: none;
-    border-radius: 12px;
-    color: white;
-    cursor: pointer;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.3);
+    display: none !important;
 }
 
-/* Sidebar Overlay for mobile */
-.sidebar-overlay {
+/* ==================== MOBILE BOTTOM NAV ==================== */
+.mobile-bottom-nav {
     display: none;
     position: fixed;
-    top: 0;
+    bottom: 0;
     left: 0;
     right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-    opacity: 0;
-    transition: opacity 0.3s ease;
+    z-index: 500;
+    background: white;
+    border-top: 1.5px solid #f1f5f9;
+    padding: 0.4rem 0.5rem env(safe-area-inset-bottom, 0.4rem);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.08);
 }
 
-.sidebar-overlay.visible {
-    opacity: 1;
+/* Sidebar Overlay for mobile - not used with drawer */
+.sidebar-overlay {
+    display: none !important;
 }
 
-/* Tablet Breakpoint - Collapsed sidebar with icons only */
+/* ==================== TABLET BREAKPOINT ==================== */
 @media (max-width: 1024px) {
     :root {
         --sidebar-width: 80px;
@@ -869,100 +856,171 @@ h3 {
     }
 }
 
-/* Mobile Breakpoint - Hidden sidebar with toggle */
+/* ==================== MOBILE BREAKPOINT ==================== */
 @media (max-width: 768px) {
-    .mobile-menu-toggle {
-        display: flex;
+    html {
+        font-size: 14px;
     }
 
-    .sidebar-overlay {
-        display: block;
-        pointer-events: none;
-    }
-
-    .sidebar-overlay.visible {
-        pointer-events: auto;
-    }
-
+    /* Hide desktop sidebar on mobile - bottom nav takes over */
     .sidebar {
-        width: var(--sidebar-width);
-        transform: translateX(-100%);
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: none;
+        display: none !important;
     }
 
-    .sidebar.sidebar-open {
-        transform: translateX(0);
-        box-shadow: 4px 0 20px rgba(0, 0, 0, 0.1);
+    .app-container {
+        display: block !important;
+        height: auto !important;
+        min-height: 100vh !important;
+        overflow: visible !important;
     }
 
-    /* Reset sidebar to full width when open on mobile */
-    .sidebar.sidebar-open {
-        width: 280px;
-    }
-
-    .sidebar.sidebar-open .logo-section {
-        padding: 0 2.5rem;
-        justify-content: flex-start;
-    }
-
-    .sidebar.sidebar-open .logo-section .logo-text,
-    .sidebar.sidebar-open .logo-section>div:last-child {
-        display: block;
-    }
-
-    .sidebar.sidebar-open .nav-links {
-        padding: 0 1rem;
-    }
-
-    .sidebar.sidebar-open .nav-link {
-        justify-content: flex-start;
-        padding: 0.85rem 1.25rem;
-    }
-
-    .sidebar.sidebar-open .nav-link span:last-child {
-        display: inline;
-    }
-
-    .sidebar.sidebar-open .user-profile {
-        padding: 1rem;
-        justify-content: flex-start;
-    }
-
-    .sidebar.sidebar-open .user-profile>div:nth-child(2),
-    .sidebar.sidebar-open .user-profile>div:last-child {
-        display: block;
-    }
-
+    /* Main content full width */
     .main-content {
-        margin-left: 0;
-        padding-top: 1.25rem;
+        margin-left: 0 !important;
+        padding: 1rem 0.75rem !important;
+        padding-bottom: 2rem !important;
+        /* Standard bottom padding */
+        height: auto !important;
+        min-height: 100vh;
+        overflow-y: visible !important;
+        overflow-x: hidden;
     }
-}
 
-/* Small Mobile Breakpoint */
-@media (max-width: 480px) {
-    .main-content {
-        padding: 1.25rem 0.75rem 0.75rem;
+    .page-title {
+        font-size: 1.25rem !important;
     }
 
+    .page-header {
+        margin-bottom: 1rem !important;
+    }
+
+    /* Breadcrumbs - no hamburger offset needed */
+    .breadcrumbs {
+        padding-left: 0 !important;
+    }
+
+    /* Primary action buttons full width */
+    .primary-action-btn {
+        width: 100% !important;
+        margin-top: 0.5rem !important;
+        padding: 0.65rem 1rem !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* Card adjustments */
+    .form-card,
+    .info-card,
+    .help-card,
+    .tips-card {
+        padding: 1.25rem !important;
+    }
+
+    /* ==================== TABLE → CARD VIEW ==================== */
+    .table-card {
+        border-radius: 20px !important;
+        overflow: visible !important;
+    }
+
+    /* Hide table column headers */
+    .table-header {
+        display: none !important;
+    }
+
+    /* Each row becomes a stacked card */
+    .devotee-row,
+    .volunteer-row,
+    .sos-row {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.6rem !important;
+        padding: 1rem 1.25rem !important;
+        border-bottom: 1.5px solid #f8fafc !important;
+        min-width: unset !important;
+        grid-template-columns: unset !important;
+    }
+
+    /* Status + action inline */
+    .devotee-row .col-status,
+    .devotee-row .col-action,
+    .volunteer-row .col-status {
+        display: inline-flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        flex-wrap: wrap !important;
+    }
+
+    /* Assign volunteer button full width */
+    .assign-vol-btn {
+        width: 100% !important;
+        justify-content: center !important;
+        padding: 0.6rem 1rem !important;
+    }
+
+    /* SOS columns */
+    .sos-row .col-help,
+    .sos-row .col-status {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.25rem !important;
+        width: 100% !important;
+    }
+
+    /* Filter bars stack */
+    .filter-bar {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        padding: 1rem !important;
+        gap: 0.75rem !important;
+    }
+
+    .filter-actions {
+        width: 100% !important;
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+    }
+
+    /* Pagination */
+    .pagination-footer {
+        flex-direction: column !important;
+        align-items: center !important;
+        text-align: center !important;
+        padding: 1rem !important;
+        gap: 0.75rem !important;
+    }
+
+    /* Footer actions */
     .footer-actions {
-        padding: 0.75rem 1rem;
-        flex-direction: column;
-        gap: 1rem;
+        padding: 0.75rem 1rem !important;
+        flex-direction: column !important;
+        gap: 1rem !important;
     }
 
     .footer-actions .action-buttons {
-        width: 100%;
-        justify-content: stretch;
+        width: 100% !important;
+        justify-content: stretch !important;
     }
 
     .footer-actions .action-buttons button {
-        flex: 1;
+        flex: 1 !important;
     }
 }
 
-/* Standardized Primary Action Buttons */
+/* ==================== SMALL MOBILE ==================== */
+@media (max-width: 480px) {
+    .main-content {
+        padding: 0.75rem 0.6rem !important;
+        padding-bottom: 2rem !important;
+    }
+
+    .breadcrumbs {
+        gap: 0.4rem !important;
+        font-size: 0.6rem !important;
+    }
+}
+
+/* ==================== STANDARDIZED BUTTONS ==================== */
 .primary-action-btn {
     background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important;
     color: white !important;
@@ -990,41 +1048,4 @@ h3 {
 
 .primary-action-btn:active {
     transform: translateY(0);
-}
-
-@media (max-width: 768px) {
-    html {
-        font-size: 14px;
-        /* Scale down base font size */
-    }
-
-    .page-title {
-        font-size: 1.25rem !important;
-        /* Smaller page titles */
-    }
-
-    .page-header {
-        margin-bottom: 1rem !important;
-    }
-
-    .main-content {
-        padding: 1rem 0.75rem !important;
-        /* Reduce side padding */
-    }
-
-    .primary-action-btn {
-        width: 100% !important;
-        margin-top: 0.5rem !important;
-        padding: 0.6rem 1rem !important;
-        /* Smaller buttons */
-        font-size: 0.85rem !important;
-    }
-
-    /* Common Card Adjustments for Mobile */
-    .form-card,
-    .info-card,
-    .help-card,
-    .tips-card {
-        padding: 1.25rem !important;
-    }
 }

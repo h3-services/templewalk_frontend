@@ -32,9 +32,10 @@ export const ConfigProvider = ({ children }) => {
         }
 
         const storedAuth = localStorage.getItem('isAuthenticated');
+        const storedName = localStorage.getItem('userName');
         if (storedAuth === 'true') {
             setIsAuthenticated(true);
-            setUser({ name: 'Admin User', role: 'Administrator' });
+            setUser({ name: storedName || 'Admin User', role: 'Administrator' });
         }
     }, []);
 
@@ -44,12 +45,16 @@ export const ConfigProvider = ({ children }) => {
         localStorage.setItem('appConfig', JSON.stringify(updated));
     };
 
-    const login = (username, password) => {
+    const login = (email, password) => {
         // Mock Login
-        if (username && password) {
+        if (email && password) {
+            const displayName = email.includes('@') ? email.split('@')[0] : email;
+            const formattedName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+
             setIsAuthenticated(true);
-            setUser({ name: 'Admin User', role: 'Administrator' });
+            setUser({ name: formattedName, role: 'Administrator' });
             localStorage.setItem('isAuthenticated', 'true');
+            localStorage.setItem('userName', formattedName);
             return true;
         }
         return false;
@@ -59,6 +64,7 @@ export const ConfigProvider = ({ children }) => {
         setIsAuthenticated(false);
         setUser(null);
         localStorage.removeItem('isAuthenticated');
+        localStorage.removeItem('userName');
     };
 
     return (

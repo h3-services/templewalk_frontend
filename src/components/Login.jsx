@@ -189,7 +189,7 @@ export function Login() {
                     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
                         <InputField
-                            placeholder="Username or Email"
+                            placeholder="Administrator Email"
                             icon={User}
                             value={formData.username}
                             onChange={(e) => setFormData({ ...formData, username: e.target.value })}

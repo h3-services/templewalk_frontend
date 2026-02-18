@@ -76,33 +76,7 @@ export function Notifications() {
                 }) : [];
                 setBroadcasts(mappedData);
             } else {
-                // Mock data fallback for 404
-                setBroadcasts([
-                    {
-                        id: 1,
-                        title: "Evening Aarti Alert",
-                        description: "Today's evening Aarti will be led by Swami Ji at 6:30 PM. All devotees are cordially invited to participate.",
-                        dateSent: "2024-03-24",
-                        timeSent: "04:30 PM",
-                        audience: "DEVOTEES",
-                        audienceBg: "#eff6ff",
-                        audienceColor: "#3b82f6",
-                        reach: "1,240",
-                        deliveryRate: "98.5%"
-                    },
-                    {
-                        id: 2,
-                        title: "Volunteer Meeting Postponed",
-                        description: "The monthly volunteer coordination meeting scheduled for tomorrow has been moved to next Sunday morning.",
-                        dateSent: "2024-03-23",
-                        timeSent: "11:15 AM",
-                        audience: "VOLUNTEERS",
-                        audienceBg: "#f0fdf4",
-                        audienceColor: "#22c55e",
-                        reach: "85",
-                        deliveryRate: "100%"
-                    }
-                ]);
+                setBroadcasts([]);
             }
         } catch (error) {
             console.error("Error loading broadcasts", error);
@@ -461,20 +435,21 @@ export function Notifications() {
 
             {/* Create New Broadcast Drawer via Portal */}
             {createPortal(
-                <div style={{
+                <div className={`broadcast-drawer ${isDrawerOpen ? 'open' : ''}`} style={{
                     position: 'fixed',
                     top: 0,
-                    right: isDrawerOpen ? 0 : '-500px',
+                    right: 0,
                     width: '500px',
                     height: '100vh',
                     backgroundColor: 'white',
                     boxShadow: '-4px 0 20px rgba(0,0,0,0.1)',
                     zIndex: 9999,
-                    transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     display: 'flex',
                     flexDirection: 'column',
                     borderTopLeftRadius: '24px',
-                    borderBottomLeftRadius: '24px'
+                    borderBottomLeftRadius: '24px',
+                    transform: isDrawerOpen ? 'translateX(0)' : 'translateX(100%)'
                 }}>
                     {/* Drawer Header */}
                     <div style={{
@@ -613,7 +588,7 @@ export function Notifications() {
                         }}>
                             <Info size={16} color="#94a3b8" style={{ marginTop: '2px' }} />
                             <p style={{ fontSize: '12px', color: '#64748b', margin: 0, lineHeight: '1.5', fontWeight: '500' }}>
-                                Selecting 'All App Users' will trigger a notification to 15,420 registered accounts.
+                                Selecting 'All App Users' will trigger a notification to all registered accounts.
                             </p>
                         </div>
                     </div>
@@ -788,35 +763,50 @@ export function Notifications() {
                 .broadcast-row:hover { background-color: #fcfcfc; }
                 
                 @media (max-width: 768px) {
-                    .page-header { flex-direction: column; align-items: stretch !important; }
-                    .create-btn { width: 100%; margin-top: 0.5rem; }
+                    .page-header { flex-direction: column !important; align-items: stretch !important; gap: 0.75rem !important; margin-bottom: 1rem !important; }
+                    .page-header h1 { font-size: 1.2rem !important; }
                     
-                    .filter-bar { flex-direction: column; align-items: stretch !important; padding: 1rem !important; }
-                    .filter-actions { width: 100%; }
+                    .filter-bar { flex-direction: column !important; align-items: stretch !important; padding: 1rem !important; gap: 1rem !important; }
+                    .filter-actions { width: 100% !important; flex-direction: column !important; gap: 1rem !important; }
                     
                     .table-header { display: none !important; }
+                    
                     .broadcast-row { 
                         display: flex !important; 
-                        flex-direction: column; 
-                        gap: 1rem; 
-                        padding: 1.5rem 2rem !important;
+                        flex-direction: column !important; 
+                        gap: 1rem !important; 
+                        padding: 1.25rem 1rem !important;
                         align-items: flex-start !important;
+                        border-bottom: 1.5px solid #f8fafc !important;
+                        grid-template-columns: unset !important;
                     }
                     
+                    .col-broadcast { 
+                        width: 100% !important; 
+                        border-bottom: 1px solid #f1f5f9 !important;
+                        padding-bottom: 0.75rem !important;
+                    }
+
                     .col-audience, .col-reach {
-                        display: flex;
-                        align-items: center;
-                        gap: 1rem;
+                        display: flex !important;
+                        align-items: center !important;
+                        gap: 1rem !important;
+                        width: 100% !important;
                     }
                     
-                    .col-audience::before { content: 'Audience:'; font-size: 0.75rem; font-weight: 700; color: #94a3b8; width: 70px; }
-                    .col-reach::before { content: 'Reach:'; font-size: 0.75rem; font-weight: 700; color: #94a3b8; width: 70px; }
                     .col-reach { text-align: left !important; }
 
-                    /* Drawer Adjustments */
-                    div[style*="width: 500px"] {
-                        width: 100% !important;
-                        right: \${isDrawerOpen ? '0' : '-100%'} !important;
+                    .pagination-footer {
+                        flex-direction: column !important;
+                        gap: 1rem !important;
+                        padding: 1.25rem 1rem !important;
+                        align-items: center !important;
+                        text-align: center !important;
+                    }
+
+                    .broadcast-drawer {
+                        width: min(500px, 100vw) !important;
+                        height: 100dvh !important;
                     }
                 }
                 `

@@ -740,11 +740,60 @@ export function AccountSettings() {
             <style dangerouslySetInnerHTML={{
                 __html: `
                 @media (max-width: 768px) {
-                    .account-settings-grid {
+                    /* Hero section compact on mobile */
+                    div[style*="padding: 2rem 2.5rem"] {
+                        padding: 1.5rem !important;
+                        flex-direction: column !important;
+                        text-align: center !important;
+                    }
+                    
+                    div[style*="display: flex; alignItems: center; gap: 1.5rem"] {
+                        flex-direction: column !important;
+                        gap: 1rem !important;
+                    }
+
+                    /* Tabs horizontally scrollable */
+                    div[style*="display: flex; gap: 0.5rem; marginBottom: 1.5rem"] {
+                        overflow-x: auto !important;
+                        padding: 0.5rem !important;
+                        justify-content: flex-start !important;
+                    }
+                    
+                    div[style*="display: flex; gap: 0.5rem; marginBottom: 1.5rem"] button {
+                        flex: none !important;
+                        min-width: 120px !important;
+                    }
+                    
+                    div[style*="display: flex; gap: 0.5rem; marginBottom: 1.5rem"]::-webkit-scrollbar {
+                        display: none;
+                    }
+
+                    /* Grid becomes single column */
+                    div[style*="grid-template-columns: 1fr 1fr"] {
                         grid-template-columns: 1fr !important;
+                        gap: 1rem !important;
+                    }
+
+                    /* Profile info box padding */
+                    div[style*="padding: 2rem"] {
+                        padding: 1.5rem !important;
+                    }
+
+                    /* Full width save button */
+                    button[style*="padding: 0.8rem 2rem"] {
+                        width: 100% !important;
+                        justify-content: center !important;
+                    }
+
+                    /* Toggle boxes */
+                    div[style*="display: flex; justifyContent: space-between; alignItems: center; padding: 1rem 1.25rem"] {
+                        flex-direction: column !important;
+                        align-items: stretch !important;
+                        gap: 1rem !important;
                     }
                 }
-            `}} />
+                `
+            }} />
         </div>
     );
 }

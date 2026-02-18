@@ -68,8 +68,8 @@ export function Volunteers() {
             try {
                 // Fetch Volunteers and Users in parallel
                 const [volunteersRes, usersRes] = await Promise.all([
-                    fetch('/api/v1/volunteers/?skip=0&limit=100'),
-                    fetch('/api/v1/users/?skip=0&limit=100')
+                    fetch('/api/volunteers/?skip=0&limit=100'),
+                    fetch('/api/users/?skip=0&limit=100')
                 ]);
 
                 if (volunteersRes.ok && usersRes.ok) {
@@ -88,11 +88,11 @@ export function Volunteers() {
                         return {
                             id: v.volunteer_id || v.id || index + 1,
                             name: user.name || 'Unknown Volunteer',
-                            event: "Temple Service", // Default as not in API
-                            role: v.skill || "Volunteer",
-                            shift: "Active", // Default
-                            status: "online", // Default
-                            onDuty: v.approved || false, // Mapping approved to onDuty for visibility
+                            event: "-",
+                            role: v.skill || "-",
+                            shift: "-",
+                            status: "-",
+                            onDuty: v.approved || false,
                             initials: (user.name || 'V').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
                             color: ['#fbbf24', '#34d399', '#f87171', '#F3E5F5', '#FCE4EC'][index % 5],
                             phone: user.phone || 'N/A',
@@ -392,67 +392,43 @@ export function Volunteers() {
                 }
                 
                 @media (max-width: 768px) {
-                    .page-header { flex-direction: column; align-items: stretch !important; gap: 0.75rem !important; margin-bottom: 1rem !important; }
-                    .page-header h1 { font-size: 1.25rem !important; margin-bottom: 0.25rem !important; }
+                    .page-header { flex-direction: column !important; align-items: stretch !important; gap: 0.75rem !important; margin-bottom: 1rem !important; }
+                    .page-header h1 { font-size: 1.2rem !important; }
                     
                     .tab-container { padding-bottom: 0.5rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-                    .history-filters { flex-direction: column; align-items: stretch !important; padding: 1rem !important; }
-                    .filter-bar { flex-direction: column; align-items: stretch !important; padding: 1rem !important; }
-                    .filter-actions { width: 100%; flex-direction: column; gap: 0.75rem !important; }
                     
-                    /* Revert Card View - Enable Horizontal Scroll */
-                    .table-card {
-                        overflow-x: auto !important;
-                        display: block !important;
-                    }
-                    
-                    /* Need different grid templates for different tabs - hard to do perfectly with one rule, 
-                       so we'll target rows specifically if needed, or set a general min-width */
-                    .table-header, .volunteer-row {
-                        min-width: 900px !important;
-                        display: grid !important;
-                        /* We need to let the inline style grid-template-cols take effect? 
-                           Inline styles override stylesheets unless !important used.
-                           The inline styles are already grid. So we just need to NOT override them with flex.
-                        */
-                    }
-                    
-                    .table-header { display: grid !important; }
-                    
+                    /* Card-view rows on mobile */
                     .volunteer-row {
-                        gap: 0 !important;
-                        padding: 1rem 2rem !important;
-                        border-bottom: 1.5px solid #f8fafc !important;
-                    }
-                    
-                    .col-contact, .col-status, .col-date {
                         display: flex !important;
                         flex-direction: column !important;
-                        align-items: flex-start !important;
-                        gap: 0.25rem !important;
-                        width: auto !important;
-                        justify-content: flex-start !important;
+                        gap: 0.6rem !important;
+                        padding: 1rem 1.25rem !important;
+                        border-bottom: 1.5px solid #f8fafc !important;
+                        min-width: unset !important;
+                        grid-template-columns: unset !important;
                     }
-                    
-                    .col-contact::before, .col-status::before, .col-date::before { display: none !important; }
 
-                    .pending-row .col-status {
-                        flex-direction: row !important; /* Restore row for buttons */
-                        align-items: center !important; 
-                        width: auto !important;
+                    .volunteer-row .col-volunteer {
+                        display: flex !important;
+                        align-items: center !important;
+                        gap: 0.75rem !important;
+                        width: 100% !important;
                     }
-                    .pending-row .col-status button { width: auto !important; justify-content: flex-start !important; padding: 0.5rem 1rem !important; }
-                    
-                    .pagination-footer { 
-                        flex-direction: column; 
-                        align-items: center !important; 
-                        text-align: center;
-                        padding: 1rem !important;
+
+                    .volunteer-row .col-contact {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        gap: 0.2rem !important;
                     }
-                    
+
+                    .volunteer-row .col-status {
+                        display: inline-flex !important;
+                        align-items: center !important;
+                    }
+
                     .volunteer-drawer {
-                        width: 100%;
-                        right: -100%;
+                        width: min(500px, 100vw) !important;
+                        height: 100dvh !important;
                     }
                 }
                 `
@@ -476,8 +452,8 @@ export function Volunteers() {
                         position: 'fixed',
                         top: 0,
                         right: 0,
-                        width: '500px',
-                        height: '100vh',
+                        width: 'min(500px, 100vw)',
+                        height: '100dvh',
                         transition: 'transform 0.3s ease-in-out',
                         transform: isAddVolunteerOpen ? 'translateX(0)' : 'translateX(100%)'
                     }}>
@@ -710,76 +686,30 @@ export function Volunteers() {
                                             return;
                                         }
 
-                                        let userId = null;
-
-                                        // 1. Direct Registration (Just Create)
-                                        console.log("Registering new volunteer user...");
-                                        const registerPayload = {
+                                        const payload = {
                                             fullName: name,
                                             email: email,
                                             phoneNumber: phone,
-                                            password: `Vol1${Math.random().toString(36).slice(-8).toUpperCase()}!`,
-                                            role: "devotee",
-                                            emergency_phone: "",
-                                            deviceToken: ""
+                                            area: area || "",
+                                            specializedIn: (specialization || 'general').toLowerCase().replace(' ', '_')
                                         };
 
-                                        try {
-                                            const regRes = await fetch('/api/auth/register', {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify(registerPayload)
-                                            });
-
-                                            if (regRes.ok) {
-                                                const userData = await regRes.json();
-                                                userId = userData.user_id || userData.id;
-                                            } else {
-                                                // Fallback: If user already exists, quietly try to get their ID to proceed
-                                                console.log("Account might exist, searching for User ID...");
-                                                const usersRes = await fetch('/api/v1/users/?skip=0&limit=2000');
-                                                if (usersRes.ok) {
-                                                    const users = await usersRes.json();
-                                                    const targetEmail = email.toLowerCase().trim();
-                                                    const existing = users.find(u => (u.email || '').toLowerCase().trim() === targetEmail);
-                                                    if (existing) userId = existing.user_id || existing.id;
-                                                }
-
-                                                if (!userId) {
-                                                    const errorData = await regRes.json().catch(() => ({ detail: "Registration failed" }));
-                                                    throw new Error(errorData.detail || "Could not create user account.");
-                                                }
-                                            }
-                                        } catch (err) {
-                                            if (!userId) throw err;
-                                        }
-
-                                        // 2. Promote to Volunteer (Set approved to true for mobile)
-                                        console.log(`Adding volunteer record for User ID: ${userId}`);
-                                        const volunteerPayload = {
-                                            user_id: userId,
-                                            skill: (specialization || 'general').toLowerCase().replace(' ', '_'),
-                                            approved: true // Crucial: shows on mobile immediately
-                                        };
-
-                                        const volunteerResponse = await fetch('/api/v1/volunteers/', {
+                                        console.log("Registering volunteer via Admin API...");
+                                        const response = await fetch('/api/volunteers/', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify(volunteerPayload)
+                                            body: JSON.stringify(payload)
                                         });
 
-                                        if (!volunteerResponse.ok) {
-                                            const errorData = await volunteerResponse.json();
-                                            if (volunteerResponse.status === 400 && (errorData.detail?.includes("already") || errorData.detail?.includes("exists"))) {
-                                                alert("This person is already registered as a volunteer!");
-                                                setIsSubmitting(false);
-                                                return;
-                                            } else {
-                                                throw new Error(errorData.detail || 'Failed to add volunteer record.');
-                                            }
+                                        if (!response.ok) {
+                                            const errorData = await response.json().catch(() => ({ detail: "Request failed" }));
+                                            const errorMsg = Array.isArray(errorData.detail)
+                                                ? errorData.detail[0]?.msg
+                                                : (errorData.detail || "Failed to register volunteer.");
+                                            throw new Error(errorMsg);
                                         }
 
-                                        const result = await volunteerResponse.json();
+                                        const result = await response.json();
 
                                         // Add to local list immediately
                                         const newEntry = {
@@ -789,7 +719,7 @@ export function Volunteers() {
                                             role: result.skill || specialization,
                                             shift: "Active",
                                             status: "online",
-                                            onDuty: true, // Show as active/approved immediately
+                                            onDuty: true, // Force on duty for immediate visibility
                                             initials: name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
                                             color: '#fbbf24',
                                             phone: phone,
@@ -801,7 +731,6 @@ export function Volunteers() {
                                         alert('Volunteer registered successfully!');
                                         setIsAddVolunteerOpen(false);
                                         setVolunteerForm({ name: '', email: '', phone: '', area: '', specialization: 'General' });
-
 
                                     } catch (error) {
                                         console.error("Error adding volunteer:", error);

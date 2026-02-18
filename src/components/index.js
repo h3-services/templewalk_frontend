@@ -21,6 +21,6 @@ export { SearchBar } from './SearchBar';
 export { Pagination } from './Pagination';
 
 // Other Components
-export { Donations } from './Donations';
+
 export { Login } from './Login';
-export { AccountSettings } from './AccountSettings';
+

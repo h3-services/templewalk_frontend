@@ -756,45 +756,55 @@ export function Media() {
                 }
 
                 @media (max-width: 768px) {
-                    .page-header { flex-direction: column; align-items: stretch !important; gap: 0.75rem !important; margin-bottom: 1rem !important; }
-                    .page-header h1 { font-size: 1.25rem !important; margin-bottom: 0.25rem !important; }
+                    .page-header { flex-direction: column !important; align-items: stretch !important; gap: 0.75rem !important; margin-bottom: 1rem !important; }
+                    .page-header h1 { font-size: 1.2rem !important; }
                     
-                    .filter-bar { flex-direction: column; align-items: stretch !important; padding: 1rem !important; }
-                    .filter-actions { width: 100%; flex-direction: column; gap: 0.75rem !important; }
+                    .filter-bar { flex-direction: column !important; align-items: stretch !important; padding: 1rem !important; gap: 1rem !important; }
+                    .filter-actions { width: 100% !important; flex-direction: column !important; gap: 1rem !important; }
                     
-                    /* Revert Card View - Enable Horizontal Scroll */
-                    .table-card {
-                        overflow-x: auto !important;
-                        display: block !important;
-                    }
+                    .table-header { display: none !important; }
                     
-                    .table-header, .media-row {
-                        min-width: 800px !important;
-                        display: grid !important;
-                        grid-template-columns: 2.5fr 1.5fr 1fr 80px !important;
-                    }
-                    
-                    .table-header { display: grid !important; }
-                    
-                    .media-row {
-                        gap: 0 !important;
-                        padding: 1rem 2rem !important;
+                    /* Card-view rows for media on mobile */
+                    .media-row { 
+                        display: flex !important; 
+                        flex-direction: column !important; 
+                        gap: 0.75rem !important; 
+                        padding: 1.25rem 1rem !important;
                         border-bottom: 1.5px solid #f8fafc !important;
+                        min-width: unset !important;
+                        grid-template-columns: unset !important;
                     }
-                     .col-category, .col-date {
+                    
+                    .col-media { 
+                        width: 100% !important; 
+                        border-bottom: 1px solid #f1f5f9 !important;
+                        padding-bottom: 0.75rem !important;
+                    }
+
+                    .col-category, .col-date {
                         display: flex !important;
-                        flex-direction: column !important;
-                        align-items: flex-start !important;
-                        gap: 0.25rem !important;
-                        width: auto !important;
-                        justify-content: flex-start !important;
+                        align-items: center !important;
+                        gap: 0.75rem !important;
+                        width: 100% !important;
                     }
                     
-                    .col-category::before, .col-date::before { display: none !important; }
-                    
+                    .col-actions { 
+                        justify-content: flex-start !important; 
+                        width: 100% !important;
+                        padding-top: 0.5rem;
+                    }
+
+                    .pagination-footer {
+                        flex-direction: column !important;
+                        gap: 1rem !important;
+                        padding: 1.25rem 1rem !important;
+                        align-items: center !important;
+                        text-align: center !important;
+                    }
+
                     .media-drawer {
-                        width: 100%;
-                        right: -100%;
+                        width: min(500px, 100vw) !important;
+                        height: 100dvh !important;
                     }
                 }
             `

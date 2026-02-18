@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     AlertTriangle, MapPin, Clock, UserCheck,
     Search, Filter, ChevronDown, CheckCircle2,
-    AlertCircle, Clock3, MoreVertical, Bell, Phone
+    AlertCircle, Clock3, MoreVertical, Bell, Phone, Trash2
 } from 'lucide-react';
 import { SearchBar, Pagination } from './index';
 
@@ -25,8 +25,16 @@ export function SOSRequests() {
                 const response = await fetch(`/api/sos/list`);
                 if (response.ok) {
                     const data = await response.json();
+                    // Filter out "Guest User" and specific test IDs
+                    const filteredData = data.filter(req =>
+                        req.name !== "Guest User" &&
+                        req.name !== "vv" &&
+                        !String(req.id).startsWith('g_') &&
+                        req.id !== 666636
+                    );
+
                     // Maps API data to UI structure using real schema fields
-                    const formattedData = data.map(req => ({
+                    const formattedData = filteredData.map(req => ({
                         id: req.id,
                         name: req.name || "Unknown User",
                         phoneNumber: req.phoneNumber || "N/A",
@@ -42,46 +50,7 @@ export function SOSRequests() {
                     }));
                     setRequests(formattedData);
                 } else {
-                    // Mock data fallback
-                    setRequests([
-                        {
-                            id: 1,
-                            name: "Rahul Sharma",
-                            phoneNumber: "+91 98345 67120",
-                            helpType: "Medical Emergency",
-                            location: "Near Temple Gate 2",
-                            distance: "120m away",
-                            time: "2 mins ago",
-                            status: "Pending",
-                            priority: "Critical",
-                            color: "#ef4444"
-                        },
-                        {
-                            id: 2,
-                            name: "Anjali Devi",
-                            phoneNumber: "+91 88234 11902",
-                            helpType: "Lost Property",
-                            location: "Main Bhawan Hall",
-                            distance: "450m away",
-                            time: "8 mins ago",
-                            status: "Accepted",
-                            acceptedBy: "Volunteer Raj",
-                            priority: "Medium",
-                            color: "#3b82f6"
-                        },
-                        {
-                            id: 3,
-                            name: "Suresh Mehra",
-                            phoneNumber: "+91 77210 55432",
-                            helpType: "Security Alert",
-                            location: "Parking Lot B",
-                            distance: "800m away",
-                            time: "15 mins ago",
-                            status: "Closed",
-                            priority: "High",
-                            color: "#f59e0b"
-                        }
-                    ]);
+                    setRequests([]);
                 }
             } catch (error) {
                 console.error("Failed to fetch SOS requests", error);
@@ -92,6 +61,27 @@ export function SOSRequests() {
 
         fetchRequests();
     }, []);
+
+    const handleDelete = async (id) => {
+        if (!window.confirm("Are you sure you want to remove this SOS request?")) return;
+
+        // Optimistic UI update
+        const originalRequests = [...requests];
+        setRequests(prev => prev.filter(r => r.id !== id));
+
+        try {
+            const response = await fetch(`/api/sos/${id}/`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) {
+                throw new Error("Failed to delete");
+            }
+        } catch (error) {
+            console.error("Delete failed:", error);
+            setRequests(originalRequests);
+            alert("Failed to remove request. Please try again.");
+        }
+    };
 
     // Filter & Search Logic
     const filteredRequests = React.useMemo(() => {
@@ -253,7 +243,7 @@ export function SOSRequests() {
                     borderBottom: '1.5px solid #f1f5f9',
                     background: '#fcfcfc'
                 }}>
-                    {['REQUESTER', 'HELP TYPE & LOCATION', 'STATUS'].map(h => (
+                    {['REQUESTER', 'HELP TYPE & LOCATION', 'STATUS', 'ACTION'].map(h => (
                         <span key={h} style={{
                             fontSize: '0.65rem',
                             fontWeight: 800,
@@ -272,7 +262,7 @@ export function SOSRequests() {
                     ) : currentItems.length > 0 ? currentItems.map((request, idx) => (
                         <div key={request.id} style={{
                             display: 'grid',
-                            gridTemplateColumns: '2fr 1.5fr 1.5fr',
+                            gridTemplateColumns: '2fr 1.5fr 1.5fr 100px',
                             padding: '1rem 2rem',
                             borderBottom: idx === currentItems.length - 1 ? 'none' : '1.5px solid #f8fafc',
                             alignItems: 'center',
@@ -341,6 +331,26 @@ export function SOSRequests() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Action */}
+                            <div className="col-action" style={{ display: 'flex', justifyContent: 'center' }}>
+                                <button
+                                    onClick={() => handleDelete(request.id)}
+                                    style={{
+                                        background: '#fef2f2',
+                                        border: 'none',
+                                        padding: '0.5rem',
+                                        borderRadius: '8px',
+                                        color: '#ef4444',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'}
+                                    onMouseLeave={e => e.currentTarget.style.background = '#fef2f2'}
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
                         </div>
                     )) : (
                         <div style={{ padding: '4rem', textAlign: 'center', color: '#94a3b8' }}>
@@ -383,46 +393,54 @@ export function SOSRequests() {
                 }
 
                 @media (max-width: 768px) {
-                    .page-header { flex-direction: column; align-items: stretch !important; gap: 0.75rem !important; margin-bottom: 1rem !important; }
-                    .filter-bar { flex-direction: column; align-items: stretch !important; padding: 1rem !important; }
-                    .filter-bar > div { flex-direction: column; width: 100%; gap: 1rem !important; }
-                    .filter-bar input { width: 100%; }
+                    .page-header { flex-direction: column !important; align-items: stretch !important; gap: 0.75rem !important; margin-bottom: 1rem !important; }
+                    .filter-bar { flex-direction: column !important; align-items: stretch !important; padding: 1rem !important; gap: 1rem !important; }
+                    .filter-bar > div { flex-direction: column !important; width: 100% !important; gap: 1rem !important; }
+                    .filter-bar input { width: 100% !important; }
                     
-                    /* Revert Card View - Enable Horizontal Scroll */
-                    .table-card {
-                        overflow-x: auto !important;
-                        display: block !important;
-                    }
-                    
-                    .table-header, .sos-row {
-                        min-width: 900px !important;
-                        display: grid !important;
-                        grid-template-columns: 2fr 1.5fr 1.5fr !important;
-                    }
-                    
-                    .table-header { display: grid !important; }
-                    
+                    /* Card-view stacking for SOS rows */
                     .sos-row {
-                        gap: 0 !important;
-                        padding: 1rem 2rem !important;
-                        border-bottom: 1.5px solid #f8fafc !important;
-                    }
-                    
-                    .col-help, .col-status, .col-action {
                         display: flex !important;
                         flex-direction: column !important;
-                        align-items: flex-start !important;
-                        gap: 0.25rem !important;
-                        width: auto !important;
-                        justify-content: flex-start !important;
+                        gap: 0.75rem !important;
+                        padding: 1.25rem 1rem !important;
+                        border-bottom: 1.5px solid #f8fafc !important;
+                        min-width: unset !important;
+                        grid-template-columns: unset !important;
                     }
                     
-                    /* Reset specific styles */
-                    .col-action { margin-top: 0 !important; }
-                    .col-requester { width: auto !important; border-bottom: none !important; padding-bottom: 0 !important; margin-bottom: 0 !important; }
+                    .sos-row .col-requester {
+                        display: flex !important;
+                        align-items: center !important;
+                        gap: 0.75rem !important;
+                        width: 100% !important;
+                        border-bottom: 1px solid #f1f5f9 !important;
+                        padding-bottom: 0.75rem !important;
+                        margin-bottom: 0.25rem !important;
+                    }
                     
-                    .col-help::before, .col-status::before { display: none !important; }
-                    .col-action button { width: auto !important; padding: 0.5rem 1rem !important; }
+                    .sos-row .col-help {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        gap: 0.4rem !important;
+                        width: 100% !important;
+                    }
+                    
+                    .sos-row .col-status {
+                        display: flex !important;
+                        flex-direction: column !important;
+                        gap: 0.4rem !important;
+                        width: 100% !important;
+                        padding-top: 0.25rem !important;
+                    }
+
+                    .pagination-footer {
+                        flex-direction: column !important;
+                        gap: 1rem !important;
+                        padding: 1.25rem 1rem !important;
+                        align-items: center !important;
+                        text-align: center !important;
+                    }
                 }
             ` }} />
         </div>

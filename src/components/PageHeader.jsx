@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, Link } from '../simple-router';
-import { ChevronRight, Plus, Download } from 'lucide-react';
+import { ChevronRight, Plus, Download, Menu } from 'lucide-react';
 
 export function PageHeader({
     onDiscard,
@@ -8,6 +8,10 @@ export function PageHeader({
     view
 }) {
     const location = useLocation();
+
+    const toggleSidebar = () => {
+        window.dispatchEvent(new CustomEvent('toggle-sidebar'));
+    };
 
     const getPageDetails = () => {
         const path = location.pathname;
@@ -63,6 +67,26 @@ export function PageHeader({
                     height: '40px', // Match hamburger height
                     whiteSpace: 'nowrap'
                 }}>
+                    <button
+                        className="mobile-hamburger"
+                        onClick={toggleSidebar}
+                        style={{
+                            background: 'white',
+                            border: '1.5px solid #f1f5f9',
+                            borderRadius: '10px',
+                            width: '36px',
+                            height: '36px',
+                            display: 'none', // Hidden by default, shown via CSS
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#1e293b',
+                            cursor: 'pointer',
+                            marginRight: '0.5rem',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                        }}
+                    >
+                        <Menu size={18} strokeWidth={2.5} />
+                    </button>
                     <Link to="/dashboard" style={{ textDecoration: 'none', color: '#94a3b8' }} title="Go to Dashboard">ADMIN</Link>
                     <ChevronRight size={14} />
 
@@ -98,9 +122,14 @@ export function PageHeader({
                 @media (max-width: 768px) {
                     .page-header-container {
                         padding: 0 !important;
+                        margin-bottom: 0.5rem !important;
+                    }
+                    .mobile-hamburger {
+                        display: flex !important;
                     }
                     .breadcrumbs {
-                        padding-left: 4.5rem !important;
+                        padding-left: 0 !important;
+                        gap: 0.5rem !important;
                     }
                     .header-mobile-spacer {
                         display: none !important;
