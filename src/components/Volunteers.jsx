@@ -692,7 +692,7 @@ export function Volunteers() {
                             <button
                                 onClick={async () => {
                                     try {
-                                        const { name, email, phone } = volunteerForm;
+                                        const { name, email, phone, area, specialization } = volunteerForm;
                                         if (!name || !email || !phone) {
                                             alert("Please fill in all fields (Name, Email, Phone).");
                                             return;
@@ -711,74 +711,55 @@ export function Volunteers() {
                                         }
 
                                         let userId = null;
-                                        let isNewUser = false;
 
-                                        // 1. Search for existing user first to avoid unnecessary registration errors
+                                        // 1. Direct Registration (Just Create)
+                                        console.log("Registering new volunteer user...");
+                                        const registerPayload = {
+                                            fullName: name,
+                                            email: email,
+                                            phoneNumber: phone,
+                                            password: `Vol1${Math.random().toString(36).slice(-8).toUpperCase()}!`,
+                                            role: "devotee",
+                                            emergency_phone: "",
+                                            deviceToken: ""
+                                        };
+
                                         try {
-                                            const usersRes = await fetch('/api/v1/users/?skip=0&limit=2000');
-                                            if (usersRes.ok) {
-                                                const users = await usersRes.json();
-                                                const normalizePhone = (p) => p ? String(p).replace(/\D/g, '') : '';
-                                                const targetEmail = email.toLowerCase().trim();
-                                                const targetPhone = normalizePhone(phone);
-
-                                                const existingUser = users.find(u => {
-                                                    const uEmail = (u.email || '').toLowerCase().trim();
-                                                    const uPhone = normalizePhone(u.phone || u.phoneNumber);
-                                                    return (uEmail && uEmail === targetEmail) || (uPhone && uPhone === targetPhone);
-                                                });
-
-                                                if (existingUser) {
-                                                    userId = existingUser.user_id || existingUser.id;
-                                                    console.log("Found existing user:", existingUser.name, userId);
-                                                }
-                                            }
-                                        } catch (err) {
-                                            console.warn("Error searching for user:", err);
-                                        }
-
-                                        // 2. If user not found, try to register
-                                        if (!userId) {
-                                            isNewUser = true;
-                                            const registerPayload = {
-                                                fullName: name,
-                                                email: email,
-                                                phoneNumber: phone,
-                                                password: `Vol1${Math.random().toString(36).slice(-8).toUpperCase()}!`,
-                                                role: "devotee",
-                                                emergency_phone: "",
-                                                deviceToken: ""
-                                            };
-
-                                            const registerResponse = await fetch('/api/auth/register', {
+                                            const regRes = await fetch('/api/auth/register', {
                                                 method: 'POST',
                                                 headers: { 'Content-Type': 'application/json' },
                                                 body: JSON.stringify(registerPayload)
                                             });
 
-                                            if (registerResponse.ok) {
-                                                const userData = await registerResponse.json();
+                                            if (regRes.ok) {
+                                                const userData = await regRes.json();
                                                 userId = userData.user_id || userData.id;
                                             } else {
-                                                const errorText = await registerResponse.text();
-                                                let errorMessage = errorText || 'User registration failed';
-                                                try {
-                                                    const errorData = JSON.parse(errorText);
-                                                    errorMessage = errorData.detail || errorData.message || errorMessage;
-                                                } catch (e) { }
-                                                throw new Error(errorMessage);
+                                                // Fallback: If user already exists, quietly try to get their ID to proceed
+                                                console.log("Account might exist, searching for User ID...");
+                                                const usersRes = await fetch('/api/v1/users/?skip=0&limit=2000');
+                                                if (usersRes.ok) {
+                                                    const users = await usersRes.json();
+                                                    const targetEmail = email.toLowerCase().trim();
+                                                    const existing = users.find(u => (u.email || '').toLowerCase().trim() === targetEmail);
+                                                    if (existing) userId = existing.user_id || existing.id;
+                                                }
+
+                                                if (!userId) {
+                                                    const errorData = await regRes.json().catch(() => ({ detail: "Registration failed" }));
+                                                    throw new Error(errorData.detail || "Could not create user account.");
+                                                }
                                             }
+                                        } catch (err) {
+                                            if (!userId) throw err;
                                         }
 
-                                        if (!userId) {
-                                            throw new Error('Could not obtain User ID for volunteer registration.');
-                                        }
-
-                                        // 3. Add as Volunteer
+                                        // 2. Promote to Volunteer (Set approved to true for mobile)
+                                        console.log(`Adding volunteer record for User ID: ${userId}`);
                                         const volunteerPayload = {
                                             user_id: userId,
-                                            skill: (volunteerForm.specialization || 'general').toLowerCase().replace(' ', '_'),
-                                            approved: false
+                                            skill: (specialization || 'general').toLowerCase().replace(' ', '_'),
+                                            approved: true // Crucial: shows on mobile immediately
                                         };
 
                                         const volunteerResponse = await fetch('/api/v1/volunteers/', {
@@ -789,36 +770,38 @@ export function Volunteers() {
 
                                         if (!volunteerResponse.ok) {
                                             const errorData = await volunteerResponse.json();
-                                            if (volunteerResponse.status === 400 && errorData.detail?.includes("already")) {
-                                                alert("This user is already a volunteer!");
+                                            if (volunteerResponse.status === 400 && (errorData.detail?.includes("already") || errorData.detail?.includes("exists"))) {
+                                                alert("This person is already registered as a volunteer!");
+                                                setIsSubmitting(false);
+                                                return;
                                             } else {
                                                 throw new Error(errorData.detail || 'Failed to add volunteer record.');
                                             }
-                                        } else {
-                                            // Success! Update local state
-                                            const newVolunteerRes = await volunteerResponse.json();
-
-                                            // Add to local list immediately
-                                            const newEntry = {
-                                                id: newVolunteerRes.id || newVolunteerRes.volunteer_id || Math.random(),
-                                                name: name,
-                                                event: "Temple Service",
-                                                role: volunteerForm.specialization,
-                                                shift: "Active",
-                                                status: "online",
-                                                onDuty: false,
-                                                initials: (name || 'V').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
-                                                color: '#34d399',
-                                                phone: phone,
-                                                email: email
-                                            };
-
-                                            setActiveVolunteersData(prev => [newEntry, ...prev]);
-
-                                            alert('Volunteer added successfully!');
-                                            setIsAddVolunteerOpen(false);
-                                            setVolunteerForm({ name: '', email: '', phone: '', area: '', specialization: 'General' });
                                         }
+
+                                        const result = await volunteerResponse.json();
+
+                                        // Add to local list immediately
+                                        const newEntry = {
+                                            id: result.volunteer_id || result.user_id || Math.random(),
+                                            name: name,
+                                            event: "Temple Service",
+                                            role: result.skill || specialization,
+                                            shift: "Active",
+                                            status: "online",
+                                            onDuty: true, // Show as active/approved immediately
+                                            initials: name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+                                            color: '#fbbf24',
+                                            phone: phone,
+                                            email: email
+                                        };
+
+                                        setActiveVolunteersData(prev => [newEntry, ...prev]);
+
+                                        alert('Volunteer registered successfully!');
+                                        setIsAddVolunteerOpen(false);
+                                        setVolunteerForm({ name: '', email: '', phone: '', area: '', specialization: 'General' });
+
 
                                     } catch (error) {
                                         console.error("Error adding volunteer:", error);

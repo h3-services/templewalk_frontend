@@ -17,13 +17,9 @@ export function Media() {
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('mantra'); // API uses 'mantra' as media_type
     const [youtubeUrl, setYoutubeUrl] = useState('');
-    const [thumbnailUrl, setThumbnailUrl] = useState('');
-    const [duration, setDuration] = useState('');
     const [isTitleFocused, setIsTitleFocused] = useState(false);
     const [isDescriptionFocused, setIsDescriptionFocused] = useState(false);
     const [isUrlFocused, setIsUrlFocused] = useState(false);
-    const [isThumbnailFocused, setIsThumbnailFocused] = useState(false);
-    const [isDurationFocused, setIsDurationFocused] = useState(false);
 
 
     const getYoutubeVideoId = (url) => {
@@ -33,6 +29,34 @@ export function Media() {
     };
 
     const [mediaData, setMediaData] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchMediaData = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch('/api/media/');
+            if (response.ok) {
+                const data = await response.json();
+                const mappedData = Array.isArray(data) ? data.map(item => ({
+                    id: item.media_id || item.id,
+                    title: item.title,
+                    category: item.media_type,
+                    url: item.url,
+                    dateAdded: new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
+                    color: item.media_type === 'mantra' ? '#E3F2FD' : '#FFF3E0'
+                })) : [];
+                setMediaData(mappedData);
+            }
+        } catch (error) {
+            console.error("Error loading media data:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    React.useEffect(() => {
+        fetchMediaData();
+    }, []);
 
     React.useEffect(() => {
         setCurrentPage(1);
@@ -66,11 +90,11 @@ export function Media() {
             // Prepare API payload
             const payload = {
                 title,
-                description: description || '', // Optional field
-                media_type: category, // 'mantra' or other types
+                description: description || '',
+                media_type: category,
                 url: youtubeUrl,
-                thumbnail_url: thumbnailUrl || '', // Optional field
-                duration: duration || '' // Optional field
+                thumbnail_url: '',
+                duration: ''
             };
 
             // Make API call
@@ -91,7 +115,7 @@ export function Media() {
 
             // Update local state with the new media from API response
             const newEntry = {
-                id: newMedia.media_id,
+                id: newMedia.media_id || newMedia.id,
                 title: newMedia.title,
                 category: newMedia.media_type,
                 url: newMedia.url,
@@ -106,8 +130,6 @@ export function Media() {
             setTitle('');
             setDescription('');
             setYoutubeUrl('');
-            setThumbnailUrl('');
-            setDuration('');
             setCategory('mantra');
 
             alert('Media added successfully!');
@@ -119,9 +141,37 @@ export function Media() {
         }
     };
 
-    const handleDelete = (id) => {
-        if (window.confirm("Are you sure you want to delete this media?")) {
-            setMediaData(mediaData.filter(m => m.id !== id));
+    const handleDelete = async (id) => {
+        if (!id) {
+            console.error("No ID provided for deletion");
+            return;
+        }
+
+        if (window.confirm("Are you sure you want to delete this spiritual media?")) {
+            try {
+                console.log(`Attempting to delete media with ID: ${id}`);
+                const response = await fetch(`/api/media/${id}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok || response.status === 404) {
+                    setMediaData(prev => prev.filter(m => m.id !== id));
+                    if (response.ok) alert("Media deleted successfully!");
+                    else console.warn("Media already deleted from server, updating local view.");
+                } else {
+                    const errorText = await response.text();
+                    console.error("Delete failed:", errorText);
+                    let errorMessage = "Failed to delete media";
+                    try {
+                        const errorData = JSON.parse(errorText);
+                        errorMessage = errorData.detail || errorData.message || errorMessage;
+                    } catch (e) { }
+                    throw new Error(errorMessage);
+                }
+            } catch (error) {
+                console.error("Error deleting media:", error);
+                alert(`Error: ${error.message}`);
+            }
         }
     };
 
@@ -296,7 +346,11 @@ export function Media() {
                         scrollbarWidth: 'thin',
                         scrollbarColor: '#f1f5f9 transparent'
                     }}>
-                        {currentItems.length === 0 ? (
+                        {loading ? (
+                            <div style={{ padding: '4rem', textAlign: 'center', color: '#64748b' }}>
+                                <p>Loading spiritual library...</p>
+                            </div>
+                        ) : currentItems.length === 0 ? (
                             <div style={{
                                 display: 'flex',
                                 flexDirection: 'column',
@@ -357,7 +411,7 @@ export function Media() {
                                             justifyContent: 'center',
                                             flexShrink: 0
                                         }}>
-                                            {item.category === 'Song' ? <Music size={20} color="#3b82f6" /> : <Layers size={20} color="#f97316" />}
+                                            {item.category === 'song' ? <Music size={20} color="#3b82f6" /> : <Layers size={20} color="#f97316" />}
                                         </div>
                                         <div>
                                             <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{item.title}</div>
@@ -527,13 +581,13 @@ export function Media() {
                                     onClick={() => setCategory('mantra')}
                                     style={category === 'mantra' ? selectedOptionStyle : optionStyle}
                                 >
-                                    <Music size={16} /> Mantra
+                                    <Layers size={16} /> Mantra
                                 </button>
                                 <button
                                     onClick={() => setCategory('song')}
                                     style={category === 'song' ? selectedOptionStyle : optionStyle}
                                 >
-                                    <Layers size={16} /> Song
+                                    <Music size={16} /> Song
                                 </button>
                             </div>
                         </div>
@@ -574,70 +628,6 @@ export function Media() {
                             </div>
                         </div>
 
-                        {/* Thumbnail URL Input */}
-                        <div style={{ position: 'relative' }}>
-                            <label style={{
-                                position: 'absolute',
-                                left: '14px',
-                                top: (isThumbnailFocused || thumbnailUrl) ? '-8px' : '15px',
-                                fontSize: (isThumbnailFocused || thumbnailUrl) ? '12px' : '14px',
-                                color: isThumbnailFocused ? '#f97316' : '#9ca3af',
-                                backgroundColor: 'white',
-                                padding: '0 5px',
-                                transition: 'all 0.2s ease',
-                                pointerEvents: 'none',
-                                fontWeight: (isThumbnailFocused || thumbnailUrl) ? '700' : '500',
-                                zIndex: 1
-                            }}>
-                                Thumbnail URL (Optional)
-                            </label>
-                            <input
-                                type="text"
-                                value={thumbnailUrl}
-                                onChange={(e) => setThumbnailUrl(e.target.value)}
-                                onFocus={() => setIsThumbnailFocused(true)}
-                                onBlur={() => setIsThumbnailFocused(false)}
-                                style={{
-                                    ...inputStyle,
-                                    borderColor: isThumbnailFocused ? '#f97316' : '#e5e7eb',
-                                    borderWidth: isThumbnailFocused ? '2px' : '1px',
-                                    padding: isThumbnailFocused ? '13px 17px' : '14px 18px'
-                                }}
-                            />
-                        </div>
-
-                        {/* Duration Input */}
-                        <div style={{ position: 'relative' }}>
-                            <label style={{
-                                position: 'absolute',
-                                left: '14px',
-                                top: (isDurationFocused || duration) ? '-8px' : '15px',
-                                fontSize: (isDurationFocused || duration) ? '12px' : '14px',
-                                color: isDurationFocused ? '#f97316' : '#9ca3af',
-                                backgroundColor: 'white',
-                                padding: '0 5px',
-                                transition: 'all 0.2s ease',
-                                pointerEvents: 'none',
-                                fontWeight: (isDurationFocused || duration) ? '700' : '500',
-                                zIndex: 1
-                            }}>
-                                Duration (Optional, e.g., "3:45")
-                            </label>
-                            <input
-                                type="text"
-                                value={duration}
-                                onChange={(e) => setDuration(e.target.value)}
-                                onFocus={() => setIsDurationFocused(true)}
-                                onBlur={() => setIsDurationFocused(false)}
-                                placeholder="e.g., 3:45"
-                                style={{
-                                    ...inputStyle,
-                                    borderColor: isDurationFocused ? '#f97316' : '#e5e7eb',
-                                    borderWidth: isDurationFocused ? '2px' : '1px',
-                                    padding: isDurationFocused ? '13px 17px' : '14px 18px'
-                                }}
-                            />
-                        </div>
 
                         {/* Youtube Preview */}
                         {youtubeUrl && (
