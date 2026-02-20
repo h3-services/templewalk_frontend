@@ -37,8 +37,8 @@ export function Devotees() {
             try {
                 // Fetch users and volunteers in parallel to know who is already a volunteer
                 const [usersRes, volunteersRes] = await Promise.all([
-                    fetch('/api/users/?skip=0&limit=100'),
-                    fetch('/api/volunteers/?skip=0&limit=100')
+                    fetch('/api/users/'),
+                    fetch('/api/volunteers/')
                 ]);
 
                 if (usersRes.ok) {
@@ -109,12 +109,14 @@ export function Devotees() {
 
         try {
             const volunteerPayload = {
-                user_id: devotee.id,
-                skill: assignSkill.toLowerCase().replace(/ /g, '_'),
-                approved: true
+                fullName: devotee.name,
+                email: devotee.email,
+                phoneNumber: devotee.phone,
+                area: "General",
+                specializedIn: assignSkill.toLowerCase().replace(/ /g, '_')
             };
 
-            const res = await fetch('/api/volunteers/', {
+            const res = await fetch('/api/volunteers/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(volunteerPayload)
@@ -126,13 +128,8 @@ export function Devotees() {
                 showToast('success', `${devotee.name} has been assigned as a volunteer!`);
             } else {
                 const errData = await res.json().catch(() => ({}));
-                if (res.status === 400 && (errData.detail?.includes('already') || errData.detail?.includes('exists'))) {
-                    setAssignedIds(prev => new Set([...prev, devotee.id]));
-                    setAssignPanel(null);
-                    showToast('success', `${devotee.name} is already a volunteer.`);
-                } else {
-                    throw new Error(errData.detail || 'Failed to assign volunteer.');
-                }
+                const errMsg = Array.isArray(errData.detail) ? errData.detail[0]?.msg : (errData.detail || 'Failed to assign volunteer.');
+                throw new Error(errMsg);
             }
         } catch (err) {
             console.error('Assign volunteer error:', err);

@@ -50,7 +50,7 @@ export function GuideCreation() {
     React.useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const response = await fetch('/api/guide-categories/');
+                const response = await fetch('/api/guide/categories/');
                 if (response.ok) {
                     const data = await response.json();
                     setCategories(data.map(cat => ({
@@ -58,7 +58,7 @@ export function GuideCreation() {
                         title: cat.title,
                         description: cat.description,
                         icon: cat.icon_url || 'Star',
-                        items: cat.items || [],
+                        items: [], // Reset items as the current API schema doesn't seem to include them
                         active: true,
                         expanded: false
                     })));
@@ -115,7 +115,7 @@ export function GuideCreation() {
 
         setLoading(true);
         try {
-            const response = await fetch('/api/guide-categories/', {
+            const response = await fetch('/api/guide/categories/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

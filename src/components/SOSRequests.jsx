@@ -11,42 +11,38 @@ export function SOSRequests() {
     const [activeFilter, setActiveFilter] = useState('All');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [requests, setRequests] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         document.title = 'SOS Requests | Temple Walk Admin';
     }, []);
 
-    const [requests, setRequests] = useState([]);
-    const [loading, setLoading] = useState(true);
-
     useEffect(() => {
         const fetchRequests = async () => {
             try {
-                const response = await fetch(`/api/sos/list`);
+                const response = await fetch(`/api/sos/help-requests/`);
                 if (response.ok) {
                     const data = await response.json();
-                    // Filter out "Guest User" and specific test IDs
-                    const filteredData = data.filter(req =>
-                        req.name !== "Guest User" &&
-                        req.name !== "vv" &&
-                        !String(req.id).startsWith('g_') &&
-                        req.id !== 666636
-                    );
 
                     // Maps API data to UI structure using real schema fields
-                    const formattedData = filteredData.map(req => ({
-                        id: req.id,
-                        name: req.name || "Unknown User",
-                        phoneNumber: req.phoneNumber || "N/A",
-                        helpType: req.typeLabel || req.type || "SOS Alert",
-                        location: req.distance ? `${req.distance} away` : "Nearby",
-                        distance: req.distance || "0m",
-                        time: req.time || "Just now",
-                        status: req.status || (req.isCompleted ? "Closed" : (req.isAccepted ? "Accepted" : "Pending")),
-                        isAccepted: req.isAccepted,
-                        isCompleted: req.isCompleted,
+                    const formattedData = data.map(req => ({
+                        id: req.help_id,
+                        userId: req.user_id,
+                        eventId: req.event_id,
+                        name: req.user_id || "User",
+                        phoneNumber: "N/A",
+                        helpType: req.help_type || "SOS Alert",
+                        location: req.location_name || "Unknown Location",
+                        distance: "View on map",
+                        time: req.created_at ? new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently",
+                        status: req.status === 'open' ? 'Pending' : (req.status === 'accepted' ? 'Accepted' : (req.status === 'closed' ? 'Closed' : req.status)),
+                        isAccepted: req.status === 'accepted',
+                        isCompleted: req.status === 'closed',
+                        acceptedBy: req.accepted_by,
                         priority: "High",
-                        color: req.isAccepted ? "#3b82f6" : "#ef4444"
+                        color: req.status === 'accepted' ? "#3b82f6" : "#ef4444",
+                        message: req.message
                     }));
                     setRequests(formattedData);
                 } else {
@@ -70,7 +66,7 @@ export function SOSRequests() {
         setRequests(prev => prev.filter(r => r.id !== id));
 
         try {
-            const response = await fetch(`/api/sos/${id}/`, {
+            const response = await fetch(`/api/sos/help-requests/${id}/`, {
                 method: 'DELETE'
             });
             if (!response.ok) {
@@ -99,7 +95,6 @@ export function SOSRequests() {
         });
     }, [requests, searchTerm, activeFilter]);
 
-    const totalPages = Math.ceil(filteredRequests.length / itemsPerPage);
     const currentItems = filteredRequests.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const getPriorityColor = (priority) => {
@@ -360,7 +355,6 @@ export function SOSRequests() {
                     )}
                 </div>
 
-                {/* Pagination */}
                 {/* Pagination */}
                 <Pagination
                     currentPage={currentPage}

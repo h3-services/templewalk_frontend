@@ -11,6 +11,7 @@ export function Notifications() {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [notifType, setNotifType] = useState('text');
     const [sendTo, setSendTo] = useState('all');
+    const [roleFilter, setRoleFilter] = useState('all');
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -42,7 +43,10 @@ export function Notifications() {
 
     const fetchBroadcasts = async () => {
         try {
-            const response = await fetch('/api/alerts/notifications/');
+            const url = roleFilter === 'all'
+                ? '/api/notifications/'
+                : `/api/notifications/?role=${roleFilter}`;
+            const response = await fetch(url);
             if (response.ok) {
                 const data = await response.json();
                 const mappedData = Array.isArray(data) ? data.map(item => {
@@ -87,7 +91,7 @@ export function Notifications() {
 
     React.useEffect(() => {
         fetchBroadcasts();
-    }, []);
+    }, [roleFilter]);
 
     const filteredBroadcasts = useMemo(() => {
         return broadcasts.filter(b =>
@@ -106,9 +110,8 @@ export function Notifications() {
     const handleDelete = async (id) => {
         // Remove from UI immediately
         setBroadcasts(prev => prev.filter(b => b.id !== id));
-        // Attempt real API delete
         try {
-            await fetch(`/api/notification/broadcast/${id}`, { method: 'DELETE' });
+            await fetch(`/api/notifications/${id}/`, { method: 'DELETE' });
         } catch (e) {
             // Silently ignore — already removed from UI
         }
@@ -214,6 +217,14 @@ export function Notifications() {
                     />
 
                     <div className="filter-actions" style={{ flex: 1, display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <div style={{ flex: 1 }}>
+                            <Dropdown
+                                options={['All', 'Admin', 'Devotee', 'Volunteer']}
+                                placeholder="Filter by Role"
+                                value={roleFilter.charAt(0).toUpperCase() + roleFilter.slice(1)}
+                                onChange={(val) => setRoleFilter(val.toLowerCase())}
+                            />
+                        </div>
                         <div style={{ flex: 1, position: 'relative' }}>
                             <div style={{
                                 position: 'relative',
@@ -639,7 +650,7 @@ export function Notifications() {
                                         is_admin_sent: false
                                     };
 
-                                    const response = await fetch('/api/notification/broadcast', {
+                                    const response = await fetch('/api/notifications/broadcast', {
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',
@@ -667,12 +678,6 @@ export function Notifications() {
                                     if (response.ok) {
                                         const newNotif = await response.json();
                                         setBroadcasts(prev => [buildEntry(newNotif), ...prev]);
-                                        setIsDrawerOpen(false);
-                                        setTitle('');
-                                        setMessage('');
-                                        showToast('Broadcast sent successfully! 🎉');
-                                    } else if (response.status === 404 || response.status === 405) {
-                                        setBroadcasts(prev => [buildEntry(null), ...prev]);
                                         setIsDrawerOpen(false);
                                         setTitle('');
                                         setMessage('');

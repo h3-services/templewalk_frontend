@@ -68,8 +68,8 @@ export function Volunteers() {
             try {
                 // Fetch Volunteers and Users in parallel
                 const [volunteersRes, usersRes] = await Promise.all([
-                    fetch('/api/volunteers/?skip=0&limit=100'),
-                    fetch('/api/users/?skip=0&limit=100')
+                    fetch('/api/volunteers/'),
+                    fetch('/api/users/')
                 ]);
 
                 if (volunteersRes.ok && usersRes.ok) {
@@ -87,15 +87,16 @@ export function Volunteers() {
                         const user = usersMap[v.user_id] || {};
                         return {
                             id: v.volunteer_id || v.id || index + 1,
-                            name: user.name || 'Unknown Volunteer',
-                            event: "-",
-                            role: v.skill || "-",
-                            shift: "-",
-                            status: "-",
+                            user_id: v.user_id,
+                            name: user.fullName || user.name || 'Unknown Volunteer',
+                            event: "General Service",
+                            role: v.skill || "Volunteer",
+                            shift: "General",
+                            status: v.approved ? "Approved" : "Pending",
                             onDuty: v.approved || false,
-                            initials: (user.name || 'V').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
-                            color: ['#fbbf24', '#34d399', '#f87171', '#F3E5F5', '#FCE4EC'][index % 5],
-                            phone: user.phone || 'N/A',
+                            initials: (user.fullName || user.name || 'V').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
+                            color: ['#fbbf24', '#34d399', '#f87171', '#818cf8', '#f472b6'][index % 5],
+                            phone: user.phoneNumber || user.phone || 'N/A',
                             email: user.email || 'N/A'
                         };
                     });
@@ -695,7 +696,7 @@ export function Volunteers() {
                                         };
 
                                         console.log("Registering volunteer via Admin API...");
-                                        const response = await fetch('/api/volunteers/', {
+                                        const response = await fetch('/api/volunteers/register', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify(payload)

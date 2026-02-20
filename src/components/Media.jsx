@@ -34,16 +34,16 @@ export function Media() {
     const fetchMediaData = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/api/media/');
+            const response = await fetch('/api/media/catalog');
             if (response.ok) {
                 const data = await response.json();
-                const mappedData = Array.isArray(data) ? data.map(item => ({
-                    id: item.media_id || item.id,
+                const mappedData = Array.isArray(data) ? data.map((item, index) => ({
+                    id: item.media_id || item.id || `media-${index}-${Date.now()}`,
                     title: item.title,
-                    category: item.media_type,
+                    category: item.category || item.media_type || 'mantra',
                     url: item.url,
-                    dateAdded: new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-                    color: item.media_type === 'mantra' ? '#E3F2FD' : '#FFF3E0'
+                    dateAdded: item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'N/A',
+                    color: (item.category === 'mantra' || item.media_type === 'mantra') ? '#E3F2FD' : '#FFF3E0'
                 })) : [];
                 setMediaData(mappedData);
             }
@@ -137,6 +137,7 @@ export function Media() {
             console.error('Error adding media:', error);
             alert(`Error: ${error.message}`);
         } finally {
+            setLoading(false); // Make sure to stop loading if we show a spinner
             setIsSubmitting(false);
         }
     };
@@ -426,8 +427,8 @@ export function Media() {
                                             borderRadius: '10px',
                                             fontSize: '0.7rem',
                                             fontWeight: 800,
-                                            background: item.category === 'Song' ? '#eff6ff' : '#fff7ed',
-                                            color: item.category === 'Song' ? '#3b82f6' : '#f97316',
+                                            background: item.category === 'song' ? '#eff6ff' : '#fff7ed',
+                                            color: item.category === 'song' ? '#3b82f6' : '#f97316',
                                             letterSpacing: '0.02em',
                                             display: 'inline-flex',
                                             alignItems: 'center',
