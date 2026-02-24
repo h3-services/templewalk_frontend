@@ -37,14 +37,19 @@ export function Devotees() {
         const fetchDevotees = async () => {
             try {
                 // Fetch users and volunteers in parallel to know who is already a volunteer
+                // Using skip=0&limit=1000 as per API spec defaults but allowing more room
                 const [usersRes, volunteersRes] = await Promise.all([
-                    apiFetch('/api/users/'),
+                    apiFetch('/api/users/?skip=0&limit=1000'),
                     apiFetch('/api/volunteers/')
                 ]);
 
                 if (usersRes.ok) {
                     const data = await usersRes.json();
-                    const mappedData = data.map((user, index) => ({
+
+                    // Filter to only show devotees if that is the intent of this directory
+                    const devoteesOnly = data.filter(u => !u.role || u.role === 'devotee');
+
+                    const mappedData = devoteesOnly.map((user, index) => ({
                         id: user.user_id || `dev-${index}`,
                         name: user.name || 'Unknown',
                         joinedDate: user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A',
@@ -52,6 +57,7 @@ export function Devotees() {
                         phone: user.phone || 'N/A',
                         emergencyPhone: user.emergency_phone || null,
                         role: user.role || 'devotee',
+                        fcmToken: user.fcm_token || null,
                         isRegistered: true,
                         isWalking: false,
                         avatar: (user.name || 'U').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase(),
@@ -69,7 +75,7 @@ export function Devotees() {
                     const errorData = await usersRes.json();
                     console.error('Validation Error:', errorData.detail);
                 } else {
-                    console.error('Failed to fetch devotees');
+                    console.error('Failed to fetch devotees', usersRes.status);
                 }
             } catch (error) {
                 console.error('Error fetching devotees:', error);

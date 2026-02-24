@@ -51,7 +51,8 @@ export function GuideCreation() {
     React.useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const response = await apiFetch('/api/guide/categories/');
+                // Using skip=0&limit=100 as per API spec defaults
+                const response = await apiFetch('/api/guide/categories/?skip=0&limit=100');
                 if (response.ok) {
                     const data = await response.json();
                     setCategories(data.map(cat => ({

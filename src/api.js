@@ -4,8 +4,8 @@
  * - In production (Firebase Hosting): calls full backend URL directly
  */
 const BASE = import.meta.env.PROD
-    ? 'http://72.61.250.191:8002'   // ← backend server (http is fine; CORS must be open)
-    : '';                            // ← dev: use Vite proxy (relative /api/...)
+    ? 'https://72.61.250.191:8002'  // ← MUST support HTTPS for Firebase Hosting
+    : '';                           // ← dev: use Vite proxy (relative /api/...)
 
 export function apiUrl(path) {
     // path should start with /api/...

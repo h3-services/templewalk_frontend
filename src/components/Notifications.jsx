@@ -20,6 +20,9 @@ export function Notifications() {
     const [isSending, setIsSending] = useState(false);
     const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' }
 
+    const [broadcasts, setBroadcasts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
     const showToast = (message, type = 'success') => {
         setToast({ message, type });
         setTimeout(() => setToast(null), 3000);
@@ -39,14 +42,19 @@ export function Notifications() {
     const [isTitleFocused, setIsTitleFocused] = useState(false);
     const [isMessageFocused, setIsMessageFocused] = useState(false);
 
-    const [broadcasts, setBroadcasts] = useState([]);
-    const [loading, setLoading] = useState(true);
+    const [targetUserId, setTargetUserId] = useState('');
 
     const fetchBroadcasts = async () => {
         try {
-            const url = roleFilter === 'all'
-                ? '/api/notifications/'
-                : `/api/notifications/?role=${roleFilter}`;
+            let url = '/api/notifications/';
+            const params = new URLSearchParams();
+            if (roleFilter !== 'all') {
+                params.append('role', roleFilter);
+            }
+            if (params.toString()) {
+                url += `?${params.toString()}`;
+            }
+
             const response = await apiFetch(url);
             if (response.ok) {
                 const data = await response.json();
@@ -56,7 +64,11 @@ export function Notifications() {
                     let audienceBg = "#fff7ed";
                     let audienceColor = "#f97316";
 
-                    if (role === 'volunteer') {
+                    if (item.user_id) {
+                        audienceLabel = `USER: ${item.user_id}`;
+                        audienceBg = "#f5f3ff";
+                        audienceColor = "#8b5cf6";
+                    } else if (role === 'volunteer') {
                         audienceLabel = 'VOLUNTEERS';
                         audienceBg = "#f0fdf4";
                         audienceColor = "#22c55e";
@@ -576,18 +588,51 @@ export function Notifications() {
                         {/* Send To */}
                         <div>
                             <label style={labelStyle}>SEND TO</label>
-                            <div style={{ display: 'flex', gap: '7px', marginTop: '10px' }}>
-                                {['All App Users', 'Devotees Only', 'Volunteers Only'].map((opt) => (
+                            <div style={{ display: 'flex', gap: '7px', marginTop: '10px', flexWrap: 'wrap' }}>
+                                {['All App Users', 'Devotees Only', 'Volunteers Only', 'Specific User'].map((opt) => (
                                     <button
                                         key={opt}
-                                        onClick={() => setSendTo(opt.toLowerCase().split(' ')[0])}
-                                        style={sendTo === opt.toLowerCase().split(' ')[0] ? selectedCapsuleStyle : capsuleStyle}
+                                        onClick={() => setSendTo(opt.toLowerCase().split(' ').join('_'))}
+                                        style={sendTo === opt.toLowerCase().split(' ').join('_') ? selectedCapsuleStyle : capsuleStyle}
                                     >
                                         {opt}
                                     </button>
                                 ))}
                             </div>
                         </div>
+
+                        {/* Specific User ID Input */}
+                        {sendTo === 'specific_user' && (
+                            <div style={{ position: 'relative' }}>
+                                <label style={{
+                                    position: 'absolute',
+                                    left: '14px',
+                                    top: targetUserId ? '-8px' : '15px',
+                                    fontSize: targetUserId ? '12px' : '14px',
+                                    color: '#f97316',
+                                    backgroundColor: 'white',
+                                    padding: '0 5px',
+                                    transition: 'all 0.2s ease',
+                                    pointerEvents: 'none',
+                                    fontWeight: '700',
+                                    zIndex: 1
+                                }}>
+                                    Target User ID <span style={{ color: '#f97316' }}>*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    value={targetUserId}
+                                    onChange={(e) => setTargetUserId(e.target.value)}
+                                    placeholder="Enter user_id"
+                                    style={{
+                                        ...inputStyle,
+                                        borderColor: '#f97316',
+                                        borderWidth: '2px',
+                                        padding: '13px 17px'
+                                    }}
+                                />
+                            </div>
+                        )}
 
                         {/* Info Alert */}
                         <div style={{
@@ -636,22 +681,35 @@ export function Notifications() {
                                         return;
                                     }
 
+                                    if (sendTo === 'specific_user' && !targetUserId) {
+                                        showToast('Please enter a target User ID.', 'error');
+                                        return;
+                                    }
+
                                     setIsSending(true);
 
-                                    // Map UI 'sendTo' to API 'target_role'
-                                    let targetRole = "devotee";
-                                    if (sendTo === "volunteers") targetRole = "volunteer";
-                                    if (sendTo === "all") targetRole = "all";
-
-                                    const payload = {
+                                    let payload = {
                                         title: title,
                                         message: message,
-                                        type: "admin",
-                                        target_role: targetRole,
-                                        is_admin_sent: false
+                                        type: "admin"
                                     };
 
-                                    const response = await apiFetch('/api/notifications/broadcast', {
+                                    let endpoint = '/api/notifications/broadcast';
+
+                                    if (sendTo === 'specific_user') {
+                                        payload.user_id = targetUserId;
+                                        endpoint = '/api/notifications/user';
+                                    } else {
+                                        // Map UI 'sendTo' to API 'target_role'
+                                        let targetRole = "devotee";
+                                        if (sendTo === "volunteers_only") targetRole = "volunteer";
+                                        if (sendTo === "all_app") targetRole = "all";
+
+                                        payload.target_role = targetRole;
+                                        payload.is_admin_sent = false;
+                                    }
+
+                                    const response = await apiFetch(endpoint, {
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',
@@ -662,15 +720,16 @@ export function Notifications() {
 
                                     const buildEntry = (src) => {
                                         const now = new Date();
+                                        const role = payload.target_role || 'all';
                                         return {
                                             id: src?.notification_id || Math.random(),
                                             title: src?.title || title,
                                             description: src?.message || message,
                                             dateSent: now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
                                             timeSent: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                                            audience: targetRole === 'volunteer' ? 'VOLUNTEERS' : (targetRole === 'devotee' ? 'DEVOTEES' : 'ALL USERS'),
-                                            audienceBg: targetRole === 'volunteer' ? "#f0fdf4" : (targetRole === 'devotee' ? "#eff6ff" : "#fff7ed"),
-                                            audienceColor: targetRole === 'volunteer' ? "#22c55e" : (targetRole === 'devotee' ? "#3b82f6" : "#f97316"),
+                                            audience: payload.user_id ? `USER: ${payload.user_id}` : (role === 'volunteer' ? 'VOLUNTEERS' : (role === 'devotee' ? 'DEVOTEES' : 'ALL USERS')),
+                                            audienceBg: payload.user_id ? "#f5f3ff" : (role === 'volunteer' ? "#f0fdf4" : (role === 'devotee' ? "#eff6ff" : "#fff7ed")),
+                                            audienceColor: payload.user_id ? "#8b5cf6" : (role === 'volunteer' ? "#22c55e" : (role === 'devotee' ? "#3b82f6" : "#f97316")),
                                             reach: "0",
                                             deliveryRate: "100%"
                                         };
@@ -682,7 +741,8 @@ export function Notifications() {
                                         setIsDrawerOpen(false);
                                         setTitle('');
                                         setMessage('');
-                                        showToast('Broadcast sent successfully! 🎉');
+                                        setTargetUserId('');
+                                        showToast('Notification sent successfully! 🎉');
                                     } else {
                                         let errorMessage = "Failed to send notification";
                                         try {
@@ -727,7 +787,7 @@ export function Notifications() {
                                     Sending...
                                 </>
                             ) : (
-                                <>Send Broadcast <Send size={16} /></>
+                                <>Send Notification <Send size={16} /></>
                             )}
                         </button>
                     </div>

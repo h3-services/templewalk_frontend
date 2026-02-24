@@ -58,11 +58,11 @@ export function LiveDashboard() {
     useEffect(() => {
         if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-        // Default to Pollachi/Palani area coords (~10.6, 77.2)
+        // Default to Madurai area (matches new RoutesAndStops defaults)
         const map = L.map(mapContainerRef.current, {
-            center: [10.6620, 77.0065],
+            center: [9.9195, 78.1193],
             zoom: 12,
-            minZoom: 10, // Lock zoom-out
+            minZoom: 8,
             zoomControl: false,
             attributionControl: false
         });
@@ -71,14 +71,7 @@ export function LiveDashboard() {
             maxZoom: 19,
         }).addTo(map);
 
-        // Optional: Hard-lock bounds to Pollachi/Palani area to prevent wandering off
-        const southWest = L.latLng(10.2, 76.5);
-        const northEast = L.latLng(11.1, 77.5);
-        const bounds = L.latLngBounds(southWest, northEast);
-        map.setMaxBounds(bounds);
-        map.on('drag', function () {
-            map.panInsideBounds(bounds, { animate: false });
-        });
+        // Remove strict bounds to prevent "stuck" view on older regions
 
         // Add Zoom control at top right
         L.control.zoom({ position: 'topright' }).addTo(map);
@@ -171,6 +164,11 @@ export function LiveDashboard() {
                             L.polyline(fallbackLatLngs, { color: '#2563eb', weight: 4 }).addTo(layerGroup);
                             layerGroup.addTo(mapInstanceRef.current);
                             routeLayerRef.current = layerGroup;
+
+                            const bounds = L.latLngBounds(fallbackLatLngs);
+                            if (bounds.isValid()) {
+                                mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40] });
+                            }
                         }
                     } else if (markerCoords.length === 1) {
                         // Just one point, show it

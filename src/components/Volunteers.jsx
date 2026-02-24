@@ -69,8 +69,9 @@ export function Volunteers() {
             try {
                 // Fetch Volunteers and Users in parallel
                 const [volunteersRes, usersRes] = await Promise.all([
-                    apiFetch('/api/volunteers/'),
-                    apiFetch('/api/users/')
+                    // Using skip=0&limit=100 as per API spec defaults
+                    apiFetch('/api/volunteers/?skip=0&limit=100'),
+                    apiFetch('/api/users/?skip=0&limit=1000')
                 ]);
 
                 if (volunteersRes.ok && usersRes.ok) {

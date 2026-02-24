@@ -35,16 +35,17 @@ export function Media() {
     const fetchMediaData = async () => {
         try {
             setLoading(true);
-            const response = await apiFetch('/api/media/catalog');
+            // Updated to use the new API endpoint with pagination parameters
+            const response = await apiFetch('/api/media/?skip=0&limit=100');
             if (response.ok) {
                 const data = await response.json();
                 const mappedData = Array.isArray(data) ? data.map((item, index) => ({
                     id: item.media_id || item.id || `media-${index}-${Date.now()}`,
                     title: item.title,
-                    category: item.category || item.media_type || 'mantra',
+                    category: item.media_type || item.category || 'mantra',
                     url: item.url,
                     dateAdded: item.created_at ? new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : 'N/A',
-                    color: (item.category === 'mantra' || item.media_type === 'mantra') ? '#E3F2FD' : '#FFF3E0'
+                    color: (item.media_type === 'mantra' || item.category === 'mantra') ? '#E3F2FD' : '#FFF3E0'
                 })) : [];
                 setMediaData(mappedData);
             }
@@ -88,14 +89,14 @@ export function Media() {
         setIsSubmitting(true);
 
         try {
-            // Prepare API payload
+            // Prepare API payload - matching the latest schema
             const payload = {
                 title,
                 description: description || '',
-                media_type: category,
+                media_type: category, // mantra, song, video
                 url: youtubeUrl,
-                thumbnail_url: '',
-                duration: ''
+                thumbnail_url: `https://img.youtube.com/vi/${getYoutubeVideoId(youtubeUrl)}/hqdefault.jpg`,
+                duration: '00:00' // Placeholder as API requires a string
             };
 
             // Make API call
@@ -116,7 +117,7 @@ export function Media() {
 
             // Update local state with the new media from API response
             const newEntry = {
-                id: newMedia.media_id || newMedia.id,
+                id: newMedia.media_id,
                 title: newMedia.title,
                 category: newMedia.media_type,
                 url: newMedia.url,
@@ -138,7 +139,6 @@ export function Media() {
             console.error('Error adding media:', error);
             alert(`Error: ${error.message}`);
         } finally {
-            setLoading(false); // Make sure to stop loading if we show a spinner
             setIsSubmitting(false);
         }
     };
