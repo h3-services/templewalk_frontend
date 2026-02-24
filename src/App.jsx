@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiFetch } from './api';
 import { Routes, Route, Navigate } from './simple-router';
 import {
     ArrowRight,
@@ -139,7 +140,7 @@ function AuthenticatedApp() {
                     ]
                 };
 
-                const response = await fetch('/api/events/', {
+                const response = await apiFetch('/api/events/', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

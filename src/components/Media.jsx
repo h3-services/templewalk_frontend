@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { apiFetch } from '../api';
 import { createPortal } from 'react-dom';
 import {
     Music, Search, Plus, Trash2, Youtube, Play, X, ChevronDown, Calendar, Youtube as YoutubeIcon, Layers
@@ -34,7 +35,7 @@ export function Media() {
     const fetchMediaData = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/api/media/catalog');
+            const response = await apiFetch('/api/media/catalog');
             if (response.ok) {
                 const data = await response.json();
                 const mappedData = Array.isArray(data) ? data.map((item, index) => ({
@@ -98,7 +99,7 @@ export function Media() {
             };
 
             // Make API call
-            const response = await fetch('/api/media/', {
+            const response = await apiFetch('/api/media/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -151,7 +152,7 @@ export function Media() {
         if (window.confirm("Are you sure you want to delete this spiritual media?")) {
             try {
                 console.log(`Attempting to delete media with ID: ${id}`);
-                const response = await fetch(`/api/media/${id}`, {
+                const response = await apiFetch(`/api/media/${id}`, {
                     method: 'DELETE'
                 });
 

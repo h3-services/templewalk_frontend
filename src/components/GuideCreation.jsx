@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiFetch } from '../api';
 import {
     Plus,
     Trash2,
@@ -50,7 +51,7 @@ export function GuideCreation() {
     React.useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const response = await fetch('/api/guide/categories/');
+                const response = await apiFetch('/api/guide/categories/');
                 if (response.ok) {
                     const data = await response.json();
                     setCategories(data.map(cat => ({
@@ -115,7 +116,7 @@ export function GuideCreation() {
 
         setLoading(true);
         try {
-            const response = await fetch('/api/guide/categories/', {
+            const response = await apiFetch('/api/guide/categories/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

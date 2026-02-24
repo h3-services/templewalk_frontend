@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { apiFetch } from '../api';
 import { createPortal } from 'react-dom';
 import {
     Plus, ChevronDown, Search, X, MessageSquare, Mic, Info, Send, Calendar, Users, User, ShieldCheck, Trash2
@@ -46,7 +47,7 @@ export function Notifications() {
             const url = roleFilter === 'all'
                 ? '/api/notifications/'
                 : `/api/notifications/?role=${roleFilter}`;
-            const response = await fetch(url);
+            const response = await apiFetch(url);
             if (response.ok) {
                 const data = await response.json();
                 const mappedData = Array.isArray(data) ? data.map(item => {
@@ -111,7 +112,7 @@ export function Notifications() {
         // Remove from UI immediately
         setBroadcasts(prev => prev.filter(b => b.id !== id));
         try {
-            await fetch(`/api/notifications/${id}/`, { method: 'DELETE' });
+            await apiFetch(`/api/notifications/${id}/`, { method: 'DELETE' });
         } catch (e) {
             // Silently ignore — already removed from UI
         }
@@ -650,7 +651,7 @@ export function Notifications() {
                                         is_admin_sent: false
                                     };
 
-                                    const response = await fetch('/api/notifications/broadcast', {
+                                    const response = await apiFetch('/api/notifications/broadcast', {
                                         method: 'POST',
                                         headers: {
                                             'Content-Type': 'application/json',

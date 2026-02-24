@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../api';
 import {
     AlertTriangle, MapPin, Clock, UserCheck,
     Search, Filter, ChevronDown, CheckCircle2,
@@ -21,7 +22,7 @@ export function SOSRequests() {
     useEffect(() => {
         const fetchRequests = async () => {
             try {
-                const response = await fetch(`/api/sos/help-requests/`);
+                const response = await apiFetch(`/api/sos/help-requests/`);
                 if (response.ok) {
                     const data = await response.json();
 

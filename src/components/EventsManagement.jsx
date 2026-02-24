@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { apiFetch } from '../api';
 import {
     Trash2, ChevronRight, Play, CheckCircle2, Clock,
     Plus, ChevronDown, Calendar, MoreVertical, TrendingUp, Edit2
@@ -18,7 +19,7 @@ export function EventsManagement({ onCreateNew, onEdit }) {
     useEffect(() => {
         const fetchEvents = async () => {
             try {
-                const response = await fetch('/api/events/');
+                const response = await apiFetch('/api/events/');
                 if (response.ok) {
                     const data = await response.json();
                     const formatted = data
@@ -93,7 +94,7 @@ export function EventsManagement({ onCreateNew, onEdit }) {
             }
 
             try {
-                const response = await fetch(`/api/events/${id}/`, {
+                const response = await apiFetch(`/api/events/${id}/`, {
                     method: 'DELETE',
                 });
                 if (response.ok) {

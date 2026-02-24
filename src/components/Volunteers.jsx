@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { apiFetch } from '../api';
 import { createPortal } from 'react-dom';
 import {
     Phone,
@@ -68,8 +69,8 @@ export function Volunteers() {
             try {
                 // Fetch Volunteers and Users in parallel
                 const [volunteersRes, usersRes] = await Promise.all([
-                    fetch('/api/volunteers/'),
-                    fetch('/api/users/')
+                    apiFetch('/api/volunteers/'),
+                    apiFetch('/api/users/')
                 ]);
 
                 if (volunteersRes.ok && usersRes.ok) {
@@ -696,7 +697,7 @@ export function Volunteers() {
                                         };
 
                                         console.log("Registering volunteer via Admin API...");
-                                        const response = await fetch('/api/volunteers/register', {
+                                        const response = await apiFetch('/api/volunteers/register', {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
                                             body: JSON.stringify(payload)

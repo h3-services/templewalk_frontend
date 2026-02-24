@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from '../simple-router';
+import { apiFetch } from '../api';
 
 import {
     MapPin, Users, AlertTriangle, UserCheck, Bell,
@@ -11,6 +12,9 @@ import velIcon from '../assets/Vel.svg';
 
 export function LiveDashboard() {
     const navigate = useNavigate();
+    const mapContainerRef = useRef(null);
+    const mapInstanceRef = useRef(null);
+    const routeLayerRef = useRef(null);
     const [timeRemaining, setTimeRemaining] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
     const [activeFilter, setActiveFilter] = useState('all');
@@ -50,14 +54,159 @@ export function LiveDashboard() {
     const [sosList, setSosList] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    // Initialize Leaflet Map
+    useEffect(() => {
+        if (!mapContainerRef.current || mapInstanceRef.current) return;
+
+        // Default to Pollachi/Palani area coords (~10.6, 77.2)
+        const map = L.map(mapContainerRef.current, {
+            center: [10.6620, 77.0065],
+            zoom: 12,
+            minZoom: 10, // Lock zoom-out
+            zoomControl: false,
+            attributionControl: false
+        });
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+
+        // Optional: Hard-lock bounds to Pollachi/Palani area to prevent wandering off
+        const southWest = L.latLng(10.2, 76.5);
+        const northEast = L.latLng(11.1, 77.5);
+        const bounds = L.latLngBounds(southWest, northEast);
+        map.setMaxBounds(bounds);
+        map.on('drag', function () {
+            map.panInsideBounds(bounds, { animate: false });
+        });
+
+        // Add Zoom control at top right
+        L.control.zoom({ position: 'topright' }).addTo(map);
+
+        mapInstanceRef.current = map;
+
+        return () => {
+            if (mapInstanceRef.current) {
+                mapInstanceRef.current.remove();
+                mapInstanceRef.current = null;
+            }
+        };
+    }, []);
+
+    // Fetch and Draw Route Stops (Using OSRM for Real Roads)
+    useEffect(() => {
+        const fetchRouteStops = async () => {
+            if (!mapInstanceRef.current) return;
+            try {
+                const res = await apiFetch('/api/events/stops/?skip=0&limit=100');
+                if (res.ok) {
+                    const stops = await res.json();
+
+                    if (routeLayerRef.current) {
+                        mapInstanceRef.current.removeLayer(routeLayerRef.current);
+                    }
+
+                    const layerGroup = L.layerGroup();
+                    const markerCoords = [];
+
+                    stops.forEach(stop => {
+                        const lat = parseFloat(stop.lat);
+                        const lng = parseFloat(stop.lng);
+
+                        if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+                            markerCoords.push({ lat, lng });
+
+                            L.marker([lat, lng], {
+                                icon: L.divIcon({
+                                    className: 'custom-stop-marker',
+                                    html: `<div style="background: white; border: 2.5px solid #3b82f6; border-radius: 50%; width: 14px; height: 14px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);"></div>`,
+                                    iconSize: [14, 14],
+                                    iconAnchor: [7, 7]
+                                })
+                            }).bindPopup(`<strong>${stop.name || 'Stop'}</strong><br/>${stop.stop_type || ''}`)
+                                .addTo(layerGroup);
+                        }
+                    });
+
+                    if (markerCoords.length > 1) {
+                        // Use OSRM API to get road-mapped geometry
+                        // Format: lng,lat;lng,lat...
+                        const osrmCoords = markerCoords.map(c => `${c.lng},${c.lat}`).join(';');
+                        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`;
+
+                        try {
+                            const osrmRes = await fetch(osrmUrl);
+                            const osrmData = await osrmRes.json();
+
+                            if (osrmData.code === 'Ok' && osrmData.routes.length > 0) {
+                                // Draw the real road path
+                                const routeCoords = osrmData.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
+
+                                L.polyline(routeCoords, {
+                                    color: '#2563eb', // Navigation Blue
+                                    weight: 6,
+                                    opacity: 0.9,
+                                    lineJoin: 'round'
+                                }).addTo(layerGroup);
+
+                                layerGroup.addTo(mapInstanceRef.current);
+                                routeLayerRef.current = layerGroup;
+
+                                // Fit bound to the ROAD route
+                                const bounds = L.latLngBounds(routeCoords);
+                                mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40] });
+
+                                // After fitting, lock zoom out so they don't wander off
+                                const currentZoom = mapInstanceRef.current.getZoom();
+                                mapInstanceRef.current.setMinZoom(Math.max(10, currentZoom - 1));
+                                // Set max bounds to the route area specifically
+                                mapInstanceRef.current.setMaxBounds(bounds.pad(0.3));
+                            } else {
+                                throw new Error('OSRM routing failed');
+                            }
+                        } catch (routingErr) {
+                            console.warn("Routing failed, falling back to straight lines", routingErr);
+                            // Fallback to straight lines if OSRM fails
+                            const fallbackLatLngs = markerCoords.map(c => [c.lat, c.lng]);
+                            L.polyline(fallbackLatLngs, { color: '#2563eb', weight: 4 }).addTo(layerGroup);
+                            layerGroup.addTo(mapInstanceRef.current);
+                            routeLayerRef.current = layerGroup;
+                        }
+                    } else if (markerCoords.length === 1) {
+                        // Just one point, show it
+                        layerGroup.addTo(mapInstanceRef.current);
+                        routeLayerRef.current = layerGroup;
+                        mapInstanceRef.current.setView([markerCoords[0].lat, markerCoords[0].lng], 14);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch route stops", err);
+            }
+        };
+
+        // Standard refs don't trigger re-renders, so we'll poll briefly 
+        // until initialized, then start the regular 30s interval.
+        const initialCheck = setInterval(() => {
+            if (mapInstanceRef.current) {
+                fetchRouteStops();
+                clearInterval(initialCheck);
+            }
+        }, 100);
+
+        const stopInterval = setInterval(fetchRouteStops, 30000);
+        return () => {
+            clearInterval(initialCheck);
+            clearInterval(stopInterval);
+        };
+    }, []);
     // Fetch real stats data
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
                 const [usersRes, volunteersRes, sosRes] = await Promise.all([
-                    fetch('/api/users/?skip=0&limit=2000'),
-                    fetch('/api/volunteers/?skip=0&limit=2000'),
-                    fetch('/api/sos/list')
+                    apiFetch('/api/users/?skip=0&limit=2000'),
+                    apiFetch('/api/volunteers/?skip=0&limit=2000'),
+                    apiFetch('/api/sos/list')
                 ]);
 
                 let walkingCount = 0;
@@ -339,210 +488,32 @@ export function LiveDashboard() {
                     </div>
 
                     {/* Map Area */}
-                    <div style={{
-                        flex: 1,
-                        background: 'linear-gradient(135deg, #e0e7ff 0%, #fef3c7 50%, #fce7f3 100%)',
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }}>
-                        {/* Route Path */}
-                        <svg style={{
-                            position: 'absolute',
-                            width: '100%',
-                            height: '100%',
-                            top: 0,
-                            left: 0
-                        }}>
-                            <path
-                                d="M 100 400 Q 200 350, 300 300 T 500 200 T 700 150"
-                                stroke="#94a3b8"
-                                strokeWidth="3"
-                                fill="none"
-                                strokeDasharray="8,4"
-                            />
-                        </svg>
-
-                        {/* Start Marker */}
+                    <div
+                        ref={mapContainerRef}
+                        style={{
+                            flex: 1,
+                            background: '#f8fafc',
+                            position: 'relative',
+                            zIndex: 1
+                        }}
+                    >
+                        {/* Map Overlay info */}
                         <div style={{
                             position: 'absolute',
-                            left: '15%',
-                            bottom: '25%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '0.5rem'
-                        }}>
-                            <div style={{
-                                width: '56px',
-                                height: '56px',
-                                background: 'white',
-                                borderRadius: '50%',
-                                border: '3px solid #ef4444',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '1.75rem',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                            }}>▶️</div>
-                            <span style={{
-                                background: 'white',
-                                padding: '0.4rem 0.85rem',
-                                borderRadius: '8px',
-                                fontSize: '0.7rem',
-                                fontWeight: 800,
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                                color: '#0f172a'
-                            }}>Start</span>
-                        </div>
-
-                        {/* Temple Marker */}
-                        <div style={{
-                            position: 'absolute',
-                            right: '15%',
-                            top: '15%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '0.5rem'
-                        }}>
-                            <div style={{
-                                width: '56px',
-                                height: '56px',
-                                background: 'white',
-                                borderRadius: '50%',
-                                border: '3px solid #f59e0b',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '1.75rem',
-                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                            }}>🛕</div>
-                            <span style={{
-                                background: 'white',
-                                padding: '0.4rem 0.85rem',
-                                borderRadius: '8px',
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                                color: '#0f172a'
-                            }}>Temple</span>
-                        </div>
-
-                        {/* SOS Alert Badge */}
-                        <div style={{
-                            position: 'absolute',
-                            right: '22%',
-                            top: '20%',
-                            width: '36px',
-                            height: '36px',
-                            background: '#ef4444',
-                            borderRadius: '50%',
-                            border: '3px solid white',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'white',
-                            fontSize: '0.8rem',
-                            fontWeight: 800,
-                            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)'
-                        }}>1</div>
-
-                        {/* Volunteer Group Badge */}
-                        <div style={{
-                            position: 'absolute',
-                            left: '35%',
-                            top: '35%',
-                            background: '#3b82f6',
-                            color: 'white',
-                            padding: '0.4rem 0.85rem',
-                            borderRadius: '12px',
-                            fontSize: '0.85rem',
+                            bottom: '1rem',
+                            left: '1rem',
+                            zIndex: 1000,
+                            background: 'rgba(255,255,255,0.9)',
+                            padding: '0.4rem 0.8rem',
+                            borderRadius: '8px',
+                            fontSize: '0.7rem',
                             fontWeight: 700,
-                            boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
-                        }}>32</div>
-
-                        {/* Pilgrim Dots */}
-                        {[...Array(15)].map((_, i) => (
-                            <div key={i} style={{
-                                position: 'absolute',
-                                left: `${20 + i * 4}%`,
-                                top: `${60 - i * 2.5}%`,
-                                width: '10px',
-                                height: '10px',
-                                background: i % 3 === 0 ? '#10b981' : '#3b82f6',
-                                borderRadius: '50%',
-                                border: '2px solid white',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
-                            }} />
-                        ))}
-
-                        {/* Map Controls */}
-                        <div style={{
-                            position: 'absolute',
-                            bottom: '1.5rem',
-                            right: '1.5rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0.5rem'
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                            pointerEvents: 'none',
+                            color: '#0f172a',
+                            border: '1px solid #e2e8f0'
                         }}>
-                            <button style={{
-                                width: '40px',
-                                height: '40px',
-                                background: 'white',
-                                border: '1.5px solid #f1f5f9',
-                                borderRadius: '10px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                            }}>
-                                <Plus size={18} color="#64748b" />
-                            </button>
-                            <button style={{
-                                width: '40px',
-                                height: '40px',
-                                background: 'white',
-                                border: '1.5px solid #f1f5f9',
-                                borderRadius: '10px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                            }}>
-                                <Minus size={18} color="#64748b" />
-                            </button>
-                            <button style={{
-                                width: '40px',
-                                height: '40px',
-                                background: 'white',
-                                border: '1.5px solid #f1f5f9',
-                                borderRadius: '10px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                            }}>
-                                <Search size={18} color="#64748b" />
-                            </button>
-                            <button style={{
-                                width: '40px',
-                                height: '40px',
-                                background: 'white',
-                                border: '1.5px solid #f1f5f9',
-                                borderRadius: '10px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                            }}>
-                                <Maximize2 size={18} color="#64748b" />
-                            </button>
+                            Interactive Live Tracking Map
                         </div>
                     </div>
                 </div>

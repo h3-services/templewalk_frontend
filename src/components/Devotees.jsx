@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { apiFetch } from '../api';
 import { createPortal } from 'react-dom';
 import {
     Users, Search, Filter, Download, MoreVertical, MapPin,
@@ -37,8 +38,8 @@ export function Devotees() {
             try {
                 // Fetch users and volunteers in parallel to know who is already a volunteer
                 const [usersRes, volunteersRes] = await Promise.all([
-                    fetch('/api/users/'),
-                    fetch('/api/volunteers/')
+                    apiFetch('/api/users/'),
+                    apiFetch('/api/volunteers/')
                 ]);
 
                 if (usersRes.ok) {
@@ -116,7 +117,7 @@ export function Devotees() {
                 specializedIn: assignSkill.toLowerCase().replace(/ /g, '_')
             };
 
-            const res = await fetch('/api/volunteers/register', {
+            const res = await apiFetch('/api/volunteers/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(volunteerPayload)
@@ -356,11 +357,9 @@ export function Devotees() {
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#475569', fontSize: '0.85rem', fontWeight: 700 }}>
                                             <Phone size={14} color="#F97316" /> {devotee.phone}
                                         </div>
-                                        {devotee.emergencyPhone && (
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#ef4444', fontSize: '0.7rem', fontWeight: 600 }}>
-                                                <AlertTriangle size={12} /> E-Contact: {devotee.emergencyPhone}
-                                            </div>
-                                        )}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>
+                                            <Mail size={14} color="#3b82f6" /> {devotee.email}
+                                        </div>
                                     </div>
                                     <div className="col-joined">
                                         <span style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 600 }}>{devotee.joinedDate}</span>
