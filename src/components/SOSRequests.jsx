@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     AlertTriangle, MapPin, Clock, UserCheck,
     Search, Filter, ChevronDown, CheckCircle2,
-    AlertCircle, Clock3, MoreVertical, Bell, Phone, Trash2
+    AlertCircle, Clock3, MoreVertical, Bell, Phone
 } from 'lucide-react';
 import { SearchBar, Pagination } from './index';
 
@@ -58,26 +58,6 @@ export function SOSRequests() {
         fetchRequests();
     }, []);
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("Are you sure you want to remove this SOS request?")) return;
-
-        // Optimistic UI update
-        const originalRequests = [...requests];
-        setRequests(prev => prev.filter(r => r.id !== id));
-
-        try {
-            const response = await fetch(`/api/sos/help-requests/${id}/`, {
-                method: 'DELETE'
-            });
-            if (!response.ok) {
-                throw new Error("Failed to delete");
-            }
-        } catch (error) {
-            console.error("Delete failed:", error);
-            setRequests(originalRequests);
-            alert("Failed to remove request. Please try again.");
-        }
-    };
 
     // Filter & Search Logic
     const filteredRequests = React.useMemo(() => {
@@ -233,12 +213,13 @@ export function SOSRequests() {
                 {/* Table Header */}
                 <div className="table-header" style={{
                     display: 'grid',
-                    gridTemplateColumns: '2fr 1.5fr 1.5fr',
+                    gridTemplateColumns: '1.2fr 1.2fr 1.6fr',
+                    columnGap: '4rem',
                     padding: '1.25rem 2rem',
                     borderBottom: '1.5px solid #f1f5f9',
                     background: '#fcfcfc'
                 }}>
-                    {['REQUESTER', 'HELP TYPE & LOCATION', 'STATUS', 'ACTION'].map(h => (
+                    {['REQUESTER', 'HELP TYPE & LOCATION', 'STATUS'].map(h => (
                         <span key={h} style={{
                             fontSize: '0.65rem',
                             fontWeight: 800,
@@ -257,7 +238,8 @@ export function SOSRequests() {
                     ) : currentItems.length > 0 ? currentItems.map((request, idx) => (
                         <div key={request.id} style={{
                             display: 'grid',
-                            gridTemplateColumns: '2fr 1.5fr 1.5fr 100px',
+                            gridTemplateColumns: '1.2fr 1.2fr 1.6fr',
+                            columnGap: '4rem',
                             padding: '1rem 2rem',
                             borderBottom: idx === currentItems.length - 1 ? 'none' : '1.5px solid #f8fafc',
                             alignItems: 'center',
@@ -282,7 +264,14 @@ export function SOSRequests() {
                                     <AlertCircle size={22} />
                                 </div>
                                 <div>
-                                    <h4 style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b', marginBottom: '0.2rem', margin: 0 }}>{request.name}</h4>
+                                    <h4 style={{
+                                        fontSize: '0.9rem',
+                                        fontWeight: 800,
+                                        color: '#1e293b',
+                                        margin: 0,
+                                        wordBreak: 'break-all',
+                                        lineHeight: '1.2'
+                                    }}>{request.name}</h4>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#64748b', fontSize: '0.75rem', fontWeight: 600 }}>
                                         <Phone size={12} color="#f97316" /> {request.phoneNumber}
                                     </div>
@@ -319,7 +308,12 @@ export function SOSRequests() {
                                         <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>{request.status}</span>
                                     </div>
                                     {request.acceptedBy && (
-                                        <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>By {request.acceptedBy}</span>
+                                        <span style={{
+                                            fontSize: '0.75rem',
+                                            color: '#64748b',
+                                            fontWeight: 600,
+                                            wordBreak: 'break-all'
+                                        }}>By {request.acceptedBy}</span>
                                     )}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#94a3b8', fontSize: '0.75rem', fontWeight: 500 }}>
                                         <Clock size={12} /> {request.time}
@@ -327,25 +321,6 @@ export function SOSRequests() {
                                 </div>
                             </div>
 
-                            {/* Action */}
-                            <div className="col-action" style={{ display: 'flex', justifyContent: 'center' }}>
-                                <button
-                                    onClick={() => handleDelete(request.id)}
-                                    style={{
-                                        background: '#fef2f2',
-                                        border: 'none',
-                                        padding: '0.5rem',
-                                        borderRadius: '8px',
-                                        color: '#ef4444',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'}
-                                    onMouseLeave={e => e.currentTarget.style.background = '#fef2f2'}
-                                >
-                                    <Trash2 size={16} />
-                                </button>
-                            </div>
                         </div>
                     )) : (
                         <div style={{ padding: '4rem', textAlign: 'center', color: '#94a3b8' }}>

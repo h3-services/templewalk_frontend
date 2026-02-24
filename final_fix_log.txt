@@ -1,0 +1,7 @@
+rm '.firebase/hosting.ZGlzdA.cache'
+[DFW 3f7adf1] chore: remove unwanted files and update components
+ 8 files changed, 71 insertions(+), 81 deletions(-)
+ delete mode 100644 .firebase/hosting.ZGlzdA.cache
+git: 'credential-manager-core' is not a git command. See 'git --help'.
+To https://github.com/h3-services/templewalk_frontend_admin.git
+ + 9bf9bd8...3f7adf1 DFW -> DFW (forced update)
