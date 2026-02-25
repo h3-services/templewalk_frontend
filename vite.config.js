@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, process.cwd(), '');
     return {
         plugins: [react()],
-        base: "/",
+        base: mode === 'production' ? "/templewalk_frontend_admin/" : "/",
         server: {
             proxy: {
                 '/api': {
