@@ -4,7 +4,7 @@
  * - In production (Firebase Hosting): calls full backend URL directly
  */
 const BASE = import.meta.env.PROD
-    ? 'https://72.61.250.191:8002'  // ← MUST support HTTPS for Firebase Hosting
+    ? 'https://hope3services.cloud'  // ← MUST support HTTPS for Firebase Hosting
     : '';                           // ← dev: use Vite proxy (relative /api/...)
 
 export function apiUrl(path) {
@@ -13,5 +13,7 @@ export function apiUrl(path) {
 }
 
 export function apiFetch(path, options = {}) {
-    return fetch(apiUrl(path), options);
+    const url = apiUrl(path);
+    console.log(`[API] Fetching: ${url}`, options);
+    return fetch(url, options);
 }

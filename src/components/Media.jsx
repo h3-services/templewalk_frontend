@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { apiFetch } from '../api';
 import { createPortal } from 'react-dom';
 import {
-    Music, Search, Plus, Trash2, Youtube, Play, X, ChevronDown, Calendar, Youtube as YoutubeIcon, Layers
+    Music, Search, Plus, Trash2, Youtube, Play, X, ChevronDown, Calendar, Youtube as YoutubeIcon, Layers,
+    Edit2, Check
 } from 'lucide-react';
 import { SearchBar, Pagination } from './index';
 
@@ -13,13 +14,15 @@ export function Media() {
     const [itemsPerPage, setItemsPerPage] = useState(5);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Rename state
+    const [renamingId, setRenamingId] = useState(null);
+    const [renameValue, setRenameValue] = useState('');
+
     // Form State - matching API requirements
     const [title, setTitle] = useState('');
-    const [description, setDescription] = useState('');
     const [category, setCategory] = useState('mantra'); // API uses 'mantra' as media_type
     const [youtubeUrl, setYoutubeUrl] = useState('');
     const [isTitleFocused, setIsTitleFocused] = useState(false);
-    const [isDescriptionFocused, setIsDescriptionFocused] = useState(false);
     const [isUrlFocused, setIsUrlFocused] = useState(false);
 
 
@@ -92,7 +95,7 @@ export function Media() {
             // Prepare API payload - matching the latest schema
             const payload = {
                 title,
-                description: description || '',
+                description: '',
                 media_type: category, // mantra, song, video
                 url: youtubeUrl,
                 thumbnail_url: `https://img.youtube.com/vi/${getYoutubeVideoId(youtubeUrl)}/hqdefault.jpg`,
@@ -109,8 +112,20 @@ export function Media() {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to add media');
+                let errorMessage = 'Failed to add media';
+                try {
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && contentType.includes('application/json')) {
+                        const errorData = await response.json();
+                        errorMessage = errorData.detail || errorMessage;
+                    } else {
+                        const text = await response.text();
+                        errorMessage = text || errorMessage;
+                    }
+                } catch (e) {
+                    console.error("Error parsing error response:", e);
+                }
+                throw new Error(errorMessage);
             }
 
             const newMedia = await response.json();
@@ -130,7 +145,6 @@ export function Media() {
             // Reset form and close drawer
             setIsDrawerOpen(false);
             setTitle('');
-            setDescription('');
             setYoutubeUrl('');
             setCategory('mantra');
 
@@ -140,6 +154,45 @@ export function Media() {
             alert(`Error: ${error.message}`);
         } finally {
             setIsSubmitting(false);
+        }
+    };
+
+    // Rename handler
+    const startRename = (item) => {
+        setRenamingId(item.id);
+        setRenameValue(item.title);
+    };
+
+    const cancelRename = () => {
+        setRenamingId(null);
+        setRenameValue('');
+    };
+
+    const handleRename = async (id) => {
+        const trimmed = renameValue.trim();
+        if (!trimmed) {
+            alert('Title cannot be empty.');
+            return;
+        }
+
+        try {
+            const response = await apiFetch(`/api/media/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title: trimmed })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to rename media (${response.status})`);
+            }
+
+            // Update local state
+            setMediaData(prev => prev.map(m => m.id === id ? { ...m, title: trimmed } : m));
+            setRenamingId(null);
+            setRenameValue('');
+        } catch (error) {
+            console.error('Error renaming media:', error);
+            alert(`Error: ${error.message}`);
         }
     };
 
@@ -415,9 +468,34 @@ export function Media() {
                                         }}>
                                             {item.category === 'song' ? <Music size={20} color="#3b82f6" /> : <Layers size={20} color="#f97316" />}
                                         </div>
-                                        <div>
-                                            <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{item.title}</div>
-                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            {renamingId === item.id ? (
+                                                <input
+                                                    type="text"
+                                                    value={renameValue}
+                                                    onChange={(e) => setRenameValue(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') handleRename(item.id);
+                                                        if (e.key === 'Escape') cancelRename();
+                                                    }}
+                                                    autoFocus
+                                                    style={{
+                                                        fontWeight: 800,
+                                                        color: '#1e293b',
+                                                        fontSize: '0.9rem',
+                                                        border: '1.5px solid #f97316',
+                                                        borderRadius: '8px',
+                                                        padding: '0.35rem 0.6rem',
+                                                        outline: 'none',
+                                                        width: '100%',
+                                                        background: '#fff7ed',
+                                                        fontFamily: 'inherit'
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div style={{ fontWeight: 800, color: '#1e293b', fontSize: '0.9rem' }}>{item.title}</div>
+                                            )}
+                                            <div style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', marginTop: renamingId === item.id ? '4px' : 0 }}>
                                                 <Youtube size={12} color="#ef4444" /> {item.url.length > 30 ? item.url.substring(0, 30) + "..." : item.url}
                                             </div>
                                         </div>
@@ -442,14 +520,45 @@ export function Media() {
                                         {item.dateAdded}
                                     </div>
                                     <div className="col-actions" style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                                        <button
-                                            onClick={() => handleDelete(item.id)}
-                                            style={{ background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer', transition: 'color 0.2s' }}
-                                            onMouseEnter={(e) => e.target.style.color = '#ef4444'}
-                                            onMouseLeave={(e) => e.target.style.color = '#cbd5e1'}
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
+                                        {renamingId === item.id ? (
+                                            <>
+                                                <button
+                                                    onClick={() => handleRename(item.id)}
+                                                    title="Save"
+                                                    style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', transition: 'color 0.2s', padding: '4px' }}
+                                                >
+                                                    <Check size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={cancelRename}
+                                                    title="Cancel"
+                                                    style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', transition: 'color 0.2s', padding: '4px' }}
+                                                >
+                                                    <X size={18} />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    onClick={() => startRename(item)}
+                                                    title="Rename"
+                                                    style={{ background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer', transition: 'color 0.2s', padding: '4px' }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.color = '#f97316'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.color = '#cbd5e1'}
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(item.id)}
+                                                    title="Delete"
+                                                    style={{ background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer', transition: 'color 0.2s', padding: '4px' }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
+                                                    onMouseLeave={(e) => e.currentTarget.style.color = '#cbd5e1'}
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             ))
@@ -541,39 +650,7 @@ export function Media() {
                             />
                         </div>
 
-                        {/* Description Input */}
-                        <div style={{ position: 'relative' }}>
-                            <label style={{
-                                position: 'absolute',
-                                left: '14px',
-                                top: (isDescriptionFocused || description) ? '-8px' : '15px',
-                                fontSize: (isDescriptionFocused || description) ? '12px' : '14px',
-                                color: isDescriptionFocused ? '#f97316' : '#9ca3af',
-                                backgroundColor: 'white',
-                                padding: '0 5px',
-                                transition: 'all 0.2s ease',
-                                pointerEvents: 'none',
-                                fontWeight: (isDescriptionFocused || description) ? '700' : '500',
-                                zIndex: 1
-                            }}>
-                                Description (Optional)
-                            </label>
-                            <textarea
-                                value={description}
-                                onChange={(e) => setDescription(e.target.value)}
-                                onFocus={() => setIsDescriptionFocused(true)}
-                                onBlur={() => setIsDescriptionFocused(false)}
-                                rows={3}
-                                style={{
-                                    ...inputStyle,
-                                    borderColor: isDescriptionFocused ? '#f97316' : '#e5e7eb',
-                                    borderWidth: isDescriptionFocused ? '2px' : '1px',
-                                    padding: isDescriptionFocused ? '13px 17px' : '14px 18px',
-                                    resize: 'vertical',
-                                    fontFamily: 'inherit'
-                                }}
-                            />
-                        </div>
+
 
                         {/* Category Selection */}
                         <div>

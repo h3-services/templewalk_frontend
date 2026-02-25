@@ -160,9 +160,25 @@ export function GuideCreation() {
         setCategories(categories.map(c => c.id === id ? { ...c, [field]: value } : c));
     };
 
-    const deleteCategory = (id) => {
-        if (window.confirm('Are you sure you want to delete this category?')) {
+    const deleteCategory = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this category? This will permanently remove it from the database.')) {
+            return;
+        }
+
+        try {
+            const response = await apiFetch(`/api/guide/categories/${id}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to delete category (${response.status})`);
+            }
+
             setCategories(categories.filter(c => c.id !== id));
+            showToast('Category deleted successfully!');
+        } catch (error) {
+            console.error('Error deleting category:', error);
+            showToast('Failed to delete category. Please try again.', 'error');
         }
     };
 

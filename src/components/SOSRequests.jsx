@@ -3,7 +3,7 @@ import { apiFetch } from '../api';
 import {
     AlertTriangle, MapPin, Clock, UserCheck,
     Search, Filter, ChevronDown, CheckCircle2,
-    AlertCircle, Clock3, MoreVertical, Bell, Phone
+    AlertCircle, Clock3, MoreVertical, Bell, Phone, Trash2
 } from 'lucide-react';
 import { SearchBar, Pagination } from './index';
 
@@ -58,6 +58,27 @@ export function SOSRequests() {
 
         fetchRequests();
     }, []);
+
+    // Delete handler
+    const handleDelete = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this SOS request? This will permanently remove it from the database.')) {
+            return;
+        }
+        try {
+            const response = await apiFetch(`/api/sos/help-requests/${id}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok || response.status === 404) {
+                setRequests(prev => prev.filter(r => r.id !== id));
+            } else {
+                throw new Error(`Failed to delete (${response.status})`);
+            }
+        } catch (error) {
+            console.error('Error deleting SOS request:', error);
+            alert(`Error: ${error.message}`);
+        }
+    };
 
 
     // Filter & Search Logic
@@ -214,13 +235,13 @@ export function SOSRequests() {
                 {/* Table Header */}
                 <div className="table-header" style={{
                     display: 'grid',
-                    gridTemplateColumns: '1.2fr 1.2fr 1.6fr',
+                    gridTemplateColumns: '1.2fr 1.2fr 1.6fr 60px',
                     columnGap: '4rem',
                     padding: '1.25rem 2rem',
                     borderBottom: '1.5px solid #f1f5f9',
                     background: '#fcfcfc'
                 }}>
-                    {['REQUESTER', 'HELP TYPE & LOCATION', 'STATUS'].map(h => (
+                    {['REQUESTER', 'HELP TYPE & LOCATION', 'STATUS', ''].map(h => (
                         <span key={h} style={{
                             fontSize: '0.65rem',
                             fontWeight: 800,
@@ -239,7 +260,7 @@ export function SOSRequests() {
                     ) : currentItems.length > 0 ? currentItems.map((request, idx) => (
                         <div key={request.id} style={{
                             display: 'grid',
-                            gridTemplateColumns: '1.2fr 1.2fr 1.6fr',
+                            gridTemplateColumns: '1.2fr 1.2fr 1.6fr 60px',
                             columnGap: '4rem',
                             padding: '1rem 2rem',
                             borderBottom: idx === currentItems.length - 1 ? 'none' : '1.5px solid #f8fafc',
@@ -320,6 +341,26 @@ export function SOSRequests() {
                                         <Clock size={12} /> {request.time}
                                     </div>
                                 </div>
+                            </div>
+
+                            {/* Delete Action */}
+                            <div className="col-actions" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => handleDelete(request.id)}
+                                    title="Delete request"
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#cbd5e1',
+                                        cursor: 'pointer',
+                                        transition: 'color 0.2s',
+                                        padding: '4px'
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
+                                    onMouseLeave={(e) => e.currentTarget.style.color = '#cbd5e1'}
+                                >
+                                    <Trash2 size={18} />
+                                </button>
                             </div>
 
                         </div>

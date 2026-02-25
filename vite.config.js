@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
         server: {
             proxy: {
                 '/api': {
-                    target: env.VITE_API_BASE_URL || 'http://72.61.250.191:8002',
+                    target: env.VITE_API_BASE_URL || 'https://hope3services.cloud',
                     changeOrigin: true,
                     secure: false,
                 },

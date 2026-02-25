@@ -121,12 +121,20 @@ export function Notifications() {
     const handleNext = () => setCurrentPage(p => Math.min(totalPages, p + 1));
 
     const handleDelete = async (id) => {
-        // Remove from UI immediately
-        setBroadcasts(prev => prev.filter(b => b.id !== id));
+        if (!window.confirm('Are you sure you want to delete this notification?')) {
+            return;
+        }
         try {
-            await apiFetch(`/api/notifications/${id}/`, { method: 'DELETE' });
+            const response = await apiFetch(`/api/notifications/${id}`, { method: 'DELETE' });
+            if (response.ok || response.status === 404) {
+                setBroadcasts(prev => prev.filter(b => b.id !== id));
+                showToast('Notification deleted successfully!');
+            } else {
+                throw new Error(`Failed to delete (${response.status})`);
+            }
         } catch (e) {
-            // Silently ignore — already removed from UI
+            console.error('Error deleting notification:', e);
+            showToast('Failed to delete notification. Please try again.', 'error');
         }
     };
 

@@ -88,14 +88,19 @@ export function LiveDashboard() {
 
     // Fetch and Draw Route Stops (Using OSRM for Real Roads)
     useEffect(() => {
+        let cancelled = false;
+
         const fetchRouteStops = async () => {
-            if (!mapInstanceRef.current) return;
+            const map = mapInstanceRef.current;
+            if (!map) return;
             try {
                 const res = await apiFetch('/api/events/stops/?skip=0&limit=100');
+                if (cancelled || !mapInstanceRef.current) return;
                 if (res.ok) {
                     const stops = await res.json();
+                    if (cancelled || !mapInstanceRef.current) return;
 
-                    if (routeLayerRef.current) {
+                    if (routeLayerRef.current && mapInstanceRef.current) {
                         mapInstanceRef.current.removeLayer(routeLayerRef.current);
                     }
 
@@ -123,20 +128,19 @@ export function LiveDashboard() {
 
                     if (markerCoords.length > 1) {
                         // Use OSRM API to get road-mapped geometry
-                        // Format: lng,lat;lng,lat...
                         const osrmCoords = markerCoords.map(c => `${c.lng},${c.lat}`).join(';');
                         const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${osrmCoords}?overview=full&geometries=geojson`;
 
                         try {
                             const osrmRes = await fetch(osrmUrl);
                             const osrmData = await osrmRes.json();
+                            if (cancelled || !mapInstanceRef.current) return;
 
                             if (osrmData.code === 'Ok' && osrmData.routes.length > 0) {
-                                // Draw the real road path
                                 const routeCoords = osrmData.routes[0].geometry.coordinates.map(coord => [coord[1], coord[0]]);
 
                                 L.polyline(routeCoords, {
-                                    color: '#2563eb', // Navigation Blue
+                                    color: '#2563eb',
                                     weight: 6,
                                     opacity: 0.9,
                                     lineJoin: 'round'
@@ -145,21 +149,18 @@ export function LiveDashboard() {
                                 layerGroup.addTo(mapInstanceRef.current);
                                 routeLayerRef.current = layerGroup;
 
-                                // Fit bound to the ROAD route
                                 const bounds = L.latLngBounds(routeCoords);
                                 mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40] });
 
-                                // After fitting, lock zoom out so they don't wander off
                                 const currentZoom = mapInstanceRef.current.getZoom();
                                 mapInstanceRef.current.setMinZoom(Math.max(10, currentZoom - 1));
-                                // Set max bounds to the route area specifically
                                 mapInstanceRef.current.setMaxBounds(bounds.pad(0.3));
                             } else {
                                 throw new Error('OSRM routing failed');
                             }
                         } catch (routingErr) {
+                            if (cancelled || !mapInstanceRef.current) return;
                             console.warn("Routing failed, falling back to straight lines", routingErr);
-                            // Fallback to straight lines if OSRM fails
                             const fallbackLatLngs = markerCoords.map(c => [c.lat, c.lng]);
                             L.polyline(fallbackLatLngs, { color: '#2563eb', weight: 4 }).addTo(layerGroup);
                             layerGroup.addTo(mapInstanceRef.current);
@@ -171,20 +172,23 @@ export function LiveDashboard() {
                             }
                         }
                     } else if (markerCoords.length === 1) {
-                        // Just one point, show it
+                        if (cancelled || !mapInstanceRef.current) return;
                         layerGroup.addTo(mapInstanceRef.current);
                         routeLayerRef.current = layerGroup;
                         mapInstanceRef.current.setView([markerCoords[0].lat, markerCoords[0].lng], 14);
                     }
                 }
             } catch (err) {
-                console.error("Failed to fetch route stops", err);
+                if (!cancelled) {
+                    console.error("Failed to fetch route stops", err);
+                }
             }
         };
 
         // Standard refs don't trigger re-renders, so we'll poll briefly 
         // until initialized, then start the regular 30s interval.
         const initialCheck = setInterval(() => {
+            if (cancelled) { clearInterval(initialCheck); return; }
             if (mapInstanceRef.current) {
                 fetchRouteStops();
                 clearInterval(initialCheck);
@@ -193,6 +197,7 @@ export function LiveDashboard() {
 
         const stopInterval = setInterval(fetchRouteStops, 30000);
         return () => {
+            cancelled = true;
             clearInterval(initialCheck);
             clearInterval(stopInterval);
         };
@@ -213,40 +218,49 @@ export function LiveDashboard() {
                 let formattedSos = [];
 
                 if (usersRes.ok) {
-                    const users = await usersRes.json();
-                    walkingCount = users.filter(u => u.role === 'devotee').length;
+                    const isJson = usersRes.headers.get('content-type')?.includes('application/json');
+                    if (isJson) {
+                        const users = await usersRes.json();
+                        walkingCount = users.filter(u => u.role === 'devotee').length;
+                    }
                 } else {
                     walkingCount = 0;
                 }
 
                 if (volunteersRes.ok) {
-                    const volunteers = await volunteersRes.json();
-                    activeVolunteers = volunteers.length;
+                    const isJson = volunteersRes.headers.get('content-type')?.includes('application/json');
+                    if (isJson) {
+                        const volunteers = await volunteersRes.json();
+                        activeVolunteers = volunteers.length;
+                    }
                 } else {
                     activeVolunteers = 0;
                 }
 
                 if (sosRes.ok) {
-                    const sos = await sosRes.json();
-                    // Filter out "Guest User" and specific test IDs
-                    const realSos = sos.filter(s =>
-                        s.name !== "Guest User" &&
-                        s.name !== "vv" &&
-                        !String(s.id).startsWith('g_') &&
-                        s.id !== 666636
-                    );
+                    const isJson = sosRes.headers.get('content-type')?.includes('application/json');
+                    if (isJson) {
+                        const sos = await sosRes.json();
+                        // Filter out "Guest User" and specific test IDs
+                        const realSos = sos.filter(s =>
+                            s.name !== "Guest User" &&
+                            s.name !== "vv" &&
+                            !String(s.id).startsWith('g_') &&
+                            s.id !== 666636
+                        );
 
-                    pendingSos = realSos.filter(s => !s.isCompleted).length;
-                    formattedSos = realSos.map(req => ({
-                        id: req.id,
-                        name: req.name || "Unknown User",
-                        helpType: req.typeLabel || req.type || "SOS Alert",
-                        location: req.distance ? `${req.distance} away` : "Nearby",
-                        time: req.time || "Just now",
-                        attendedBy: req.isAccepted ? "Accepted" : null,
-                        status: req.status || (req.isCompleted ? "Closed" : req.isAccepted ? "Accepted" : "Pending"),
-                        color: req.isAccepted ? "#3b82f6" : "#ef4444"
-                    })).slice(0, 5);
+                        pendingSos = realSos.filter(s => !s.isCompleted).length;
+                        formattedSos = realSos.map(req => ({
+                            id: req.id,
+                            name: req.name || "Unknown User",
+                            helpType: req.typeLabel || req.type || "SOS Alert",
+                            location: req.distance ? `${req.distance} away` : "Nearby",
+                            time: req.time || "Just now",
+                            attendedBy: req.isAccepted ? "Accepted" : null,
+                            status: req.status || (req.isCompleted ? "Closed" : req.isAccepted ? "Accepted" : "Pending"),
+                            color: req.isAccepted ? "#3b82f6" : "#ef4444"
+                        })).slice(0, 5);
+                    }
                 } else {
                     pendingSos = 0;
                     formattedSos = [];
