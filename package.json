@@ -9,7 +9,7 @@
     "build": "npx vite build",
     "preview": "npx vite preview",
     "predeploy": "npm run build",
-    "deploy": "gh-pages -d dist"
+    "deploy": "npx gh-pages -d dist"
   },
   "dependencies": {
     "ag-grid-community": "^35.0.1",
