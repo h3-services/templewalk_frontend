@@ -22,29 +22,51 @@ export function SOSRequests() {
     useEffect(() => {
         const fetchRequests = async () => {
             try {
-                const response = await apiFetch(`/api/sos/help-requests/`);
-                if (response.ok) {
-                    const data = await response.json();
+                // Fetch SOS requests and users in parallel to resolve user names
+                const [sosResponse, usersResponse] = await Promise.all([
+                    apiFetch(`/api/sos/help-requests/`),
+                    apiFetch(`/api/users/?skip=0&limit=2000`)
+                ]);
 
-                    // Maps API data to UI structure using real schema fields
-                    const formattedData = data.map(req => ({
-                        id: req.help_id,
-                        userId: req.user_id,
-                        eventId: req.event_id,
-                        name: req.user_id || "User",
-                        phoneNumber: "N/A",
-                        helpType: req.help_type || "SOS Alert",
-                        location: req.location_name || "Unknown Location",
-                        distance: "View on map",
-                        time: req.created_at ? new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently",
-                        status: req.status === 'open' ? 'Pending' : (req.status === 'accepted' ? 'Accepted' : (req.status === 'closed' ? 'Closed' : req.status)),
-                        isAccepted: req.status === 'accepted',
-                        isCompleted: req.status === 'closed',
-                        acceptedBy: req.accepted_by,
-                        priority: "High",
-                        color: req.status === 'accepted' ? "#3b82f6" : "#ef4444",
-                        message: req.message
-                    }));
+                // Build a user lookup map from the users API
+                let userMap = {};
+                if (usersResponse.ok) {
+                    const usersData = await usersResponse.json();
+                    usersData.forEach(user => {
+                        userMap[user.user_id] = {
+                            name: user.name || 'Unknown',
+                            phone: user.phone || 'N/A',
+                            email: user.email || 'N/A'
+                        };
+                    });
+                }
+
+                if (sosResponse.ok) {
+                    const data = await sosResponse.json();
+
+                    // Maps API data to UI structure, resolving user names from the lookup
+                    const formattedData = data.map(req => {
+                        const userInfo = userMap[req.user_id] || { name: req.user_id || 'Unknown User', phone: 'N/A', email: 'N/A' };
+                        return {
+                            id: req.help_id,
+                            userId: req.user_id,
+                            eventId: req.event_id,
+                            name: userInfo.name,
+                            phoneNumber: userInfo.phone,
+                            email: userInfo.email,
+                            helpType: req.help_type || "SOS Alert",
+                            location: req.location_name || "Unknown Location",
+                            distance: "View on map",
+                            time: req.created_at ? new Date(req.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Recently",
+                            status: req.status === 'open' ? 'Pending' : (req.status === 'accepted' ? 'Accepted' : (req.status === 'closed' ? 'Closed' : req.status)),
+                            isAccepted: req.status === 'accepted',
+                            isCompleted: req.status === 'closed',
+                            acceptedBy: req.accepted_by,
+                            priority: "High",
+                            color: req.status === 'accepted' ? "#3b82f6" : "#ef4444",
+                            message: req.message
+                        };
+                    });
                     setRequests(formattedData);
                 } else {
                     setRequests([]);

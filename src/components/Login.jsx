@@ -104,9 +104,10 @@ export function Login() {
 
 
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+        setIsLoading(true);
 
         // Handle Remember Device
         if (rememberDevice) {
@@ -115,11 +116,12 @@ export function Login() {
             localStorage.removeItem('rememberedUsername');
         }
 
-        const success = login(formData.username, formData.password);
-        if (success) {
+        const result = await login(formData.username, formData.password);
+        if (result.success) {
             navigate('/');
         } else {
-            setError('Invalid credentials');
+            setError(result.message || 'Invalid credentials');
+            setIsLoading(false);
         }
     };
 
@@ -258,7 +260,7 @@ export function Login() {
                                 }
                             }}
                         >
-                            {isLoading ? 'Processing...' : 'Sign In'}
+                            {isLoading ? 'Verifying...' : 'Sign In'}
                         </button>
                     </form>
 
