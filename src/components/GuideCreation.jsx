@@ -420,7 +420,6 @@ export function GuideCreation() {
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem' }}>
-
                     <button
                         className="create-category-btn"
                         onClick={openAddCategoryPanel}
