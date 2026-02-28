@@ -3,3 +3,12 @@ dist/
 .env
 .DS_Store
 .firebase/
+tmp/
+*.txt
+*.bat
+!sync.bat
+!commit_changes.bat
+!firebase_deploy.bat
+!firebase_deploy_v2.bat
+!final_cleanup.bat
+!check_git.bat

@@ -12,6 +12,8 @@ import {
     X,
     ChevronDown,
     ChevronUp,
+    Anchor,
+    ShoppingBag,
     Sun,
     Moon,
     Star,
@@ -25,14 +27,15 @@ import {
     Smile,
     Coffee,
     Feather,
-    Bell,
-    Anchor
+    Bell
 } from 'lucide-react';
 import { SearchBar } from './index';
 
 const availableIcons = {
-    Sun, Moon, Star, Heart, Shield, Flame, Droplet, Zap, Book, Music, Smile, Coffee, Feather, Bell, Anchor
+    Sun, Moon, Star, Heart, Shield, Flame, Droplet, Zap, Book, Music, Smile, Coffee, Feather, Bell, Anchor, ShoppingBag
 };
+
+
 
 export function GuideCreation() {
     // Categories State
@@ -55,15 +58,35 @@ export function GuideCreation() {
                 const response = await apiFetch('/api/guide/categories/?skip=0&limit=100');
                 if (response.ok) {
                     const data = await response.json();
-                    setCategories(data.map(cat => ({
-                        id: cat.category_id,
-                        title: cat.title,
-                        description: cat.description,
-                        icon: cat.icon_url || 'Star',
-                        items: [], // Reset items as the current API schema doesn't seem to include them
-                        active: true,
-                        expanded: false
-                    })));
+                    const categoriesWithItems = await Promise.all(data.map(async cat => {
+                        // Fetch items for each category
+                        let items = [];
+                        try {
+                            const itemsRes = await apiFetch(`/api/guide/items/${cat.category_id}`);
+                            if (itemsRes.ok) {
+                                const itemsData = await itemsRes.json();
+                                items = itemsData.map(item => ({
+                                    id: item.item_id,
+                                    title: item.title,
+                                    description: item.content,
+                                    expanded: false
+                                }));
+                            }
+                        } catch (err) {
+                            console.error(`Error fetching items for category ${cat.category_id}:`, err);
+                        }
+
+                        return {
+                            id: cat.category_id,
+                            title: cat.title,
+                            description: cat.description,
+                            icon: cat.icon_url || 'Star',
+                            items: items,
+                            active: true,
+                            expanded: false
+                        };
+                    }));
+                    setCategories(categoriesWithItems);
                 }
             } catch (error) {
                 console.error('Error fetching categories:', error);
@@ -156,8 +179,32 @@ export function GuideCreation() {
         }
     };
 
-    const updateCategory = (id, field, value) => {
+    const updateCategory = async (id, field, value) => {
+        // Update local state immediately for responsiveness
         setCategories(categories.map(c => c.id === id ? { ...c, [field]: value } : c));
+
+        // If it's a structural field (title, description, icon), persist to DB
+        // (expanded/active are UI state in this implementation)
+        if (['title', 'description', 'icon'].includes(field)) {
+            const cat = categories.find(c => c.id === id);
+            if (!cat) return;
+
+            const payload = {
+                title: field === 'title' ? value : cat.title,
+                description: field === 'description' ? value : cat.description,
+                icon_url: field === 'icon' ? value : cat.icon
+            };
+
+            try {
+                await apiFetch(`/api/guide/categories/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (error) {
+                console.error('Failed to update category in DB:', error);
+            }
+        }
     };
 
     const deleteCategory = async (id) => {
@@ -193,20 +240,40 @@ export function GuideCreation() {
         setActiveCategoryForAdd(null);
     };
 
-    const handleAddItem = () => {
+    const handleAddItem = async () => {
         if (!newItemTitle.trim()) {
             showToast('Item title is required', 'error');
             return;
         }
 
-        const category = categories.find(c => c.id === activeCategoryForAdd);
-        if (category) {
+        setLoading(true);
+        try {
+            const response = await apiFetch('/api/guide/items/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    category_id: activeCategoryForAdd,
+                    title: newItemTitle,
+                    content: newItemDescription,
+                    image_url: "" // Optional in schema
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to add item');
+            }
+
+            const data = await response.json();
+
             const newItem = {
-                id: Date.now(),
-                title: newItemTitle,
-                description: newItemDescription,
+                id: data.item_id,
+                title: data.title,
+                description: data.content,
                 expanded: false
             };
+
             const updatedCategories = categories.map(c =>
                 c.id === activeCategoryForAdd
                     ? { ...c, items: [...c.items, newItem] }
@@ -215,6 +282,11 @@ export function GuideCreation() {
             setCategories(updatedCategories);
             showToast('Item added successfully');
             closeAddItemPanel();
+        } catch (error) {
+            console.error('Error adding item:', error);
+            showToast('Failed to add item. Please try again.', 'error');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -230,13 +302,29 @@ export function GuideCreation() {
         }));
     };
 
-    const deleteItem = (categoryId, itemId) => {
-        if (window.confirm('Are you sure you want to delete this item?')) {
+    const deleteItem = async (categoryId, itemId) => {
+        if (!window.confirm('Are you sure you want to delete this item?')) {
+            return;
+        }
+
+        try {
+            const response = await apiFetch(`/api/guide/item/${itemId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete item');
+            }
+
             setCategories(categories.map(c =>
                 c.id === categoryId
                     ? { ...c, items: c.items.filter(i => i.id !== itemId) }
                     : c
             ));
+            showToast('Item deleted successfully!');
+        } catch (error) {
+            console.error('Error deleting item:', error);
+            showToast('Failed to delete item. Please try again.', 'error');
         }
     };
 
@@ -247,9 +335,18 @@ export function GuideCreation() {
         setTimeout(() => setToast(null), 3000);
     };
 
-    const handleSave = () => {
-        console.log({ categories });
-        showToast('Changes saved successfully!');
+
+
+    const handleSave = async () => {
+        setLoading(true);
+        try {
+            // In this implementation, creation and deletion are handled immediately.
+            // Updates to fields are also handled in updateCategory.
+            // This handleSave can serve as a final confirmation or sync if needed.
+            showToast('All changes are automatically synced to the database!');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -322,26 +419,29 @@ export function GuideCreation() {
                         }}>Manage guide categories and content</p>
                     </div>
                 </div>
-                <button
-                    className="create-category-btn"
-                    onClick={openAddCategoryPanel}
-                    style={{
-                        padding: '0.75rem 1.5rem',
-                        background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '12px',
-                        fontSize: '0.9rem',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        boxShadow: '0 4px 12px rgba(249, 115, 22, 0.2)'
-                    }}
-                >
-                    <Plus size={18} /> Create Category
-                </button>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+
+                    <button
+                        className="create-category-btn"
+                        onClick={openAddCategoryPanel}
+                        style={{
+                            padding: '0.75rem 1.5rem',
+                            background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '12px',
+                            fontSize: '0.9rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            boxShadow: '0 4px 12px rgba(249, 115, 22, 0.2)'
+                        }}
+                    >
+                        <Plus size={18} /> Create Category
+                    </button>
+                </div>
             </div>
 
             {/* Search Bar Card */}
